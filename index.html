@@ -472,7 +472,8 @@ document.getElementById('login-form').addEventListener('submit', async (e)=>{
       const { data, error } = await sb.auth.signUp({ email, password });
       if(error) throw error;
       if(data.user){
-        await sb.from('profiles').insert({ id: data.user.id, name, email, role: 'cashier' });
+        const { error: profErr } = await sb.from('profiles').insert({ id: data.user.id, name, email, role: 'cashier' });
+        if(profErr) throw new Error('Gagal membuat profil: ' + profErr.message);
         toast('Akun dibuat. Silakan masuk.');
         toggleAuthMode();
       }
@@ -493,13 +494,21 @@ document.getElementById('logout-btn').addEventListener('click', async ()=>{
 });
 
 async function afterLogin(user){
-  let { data: prof } = await sb.from('profiles').select('*').eq('id', user.id).single();
-  if(!prof){
-    await sb.from('profiles').insert({ id: user.id, name: user.email.split('@')[0], email: user.email, role: 'cashier' });
-    const r = await sb.from('profiles').select('*').eq('id', user.id).single();
-    prof = r.data;
+  try{
+    let { data: prof } = await sb.from('profiles').select('*').eq('id', user.id).single();
+    if(!prof){
+      const { error: insErr } = await sb.from('profiles').insert({ id: user.id, name: user.email.split('@')[0], email: user.email, role: 'cashier' });
+      if(insErr) throw new Error('Gagal membuat profil pengguna: ' + insErr.message);
+      const r = await sb.from('profiles').select('*').eq('id', user.id).single();
+      prof = r.data;
+    }
+    if(!prof) throw new Error('Profil pengguna tidak ditemukan setelah dibuat.');
+    profile = prof;
+  }catch(err){
+    toast('Gagal masuk: ' + err.message);
+    await sb.auth.signOut();
+    return;
   }
-  profile = prof;
   document.getElementById('login-screen').style.display = 'none';
   document.getElementById('app').style.display = 'flex';
   document.getElementById('user-name').textContent = profile.name;
@@ -691,6 +700,7 @@ function updateCashDisplay(){
 }
 
 document.getElementById('confirm-pay-btn').addEventListener('click', async ()=>{
+  if(!profile){ toast('Sesi login bermasalah. Silakan keluar dan masuk kembali.'); return; }
   const { subtotal, discount, total } = calcTotals();
   let amountPaid = total, changeAmount = 0;
   if(selectedPayMethod==='cash'){
