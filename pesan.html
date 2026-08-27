@@ -114,6 +114,11 @@
   .otype-tabs button{flex:1; padding:10px 4px; border-radius:8px; border:1.5px solid var(--paper-line); background:var(--paper); font-size:.8rem; font-weight:700; color:var(--muted);}
   .otype-tabs button.active{background:var(--teal-soft); border-color:var(--teal); color:var(--teal);}
 
+  /* ---------- QRIS PAYMENT ---------- */
+  .qris-box{background:var(--paper); border:1.5px dashed var(--paper-line); border-radius:14px; padding:20px; text-align:center;}
+  .qris-box img{width:100%; max-width:260px; border-radius:10px; background:#fff; padding:10px; border:1.5px solid var(--paper-line);}
+  .qris-amount{font-family:var(--font-m); font-weight:700; font-size:1.3rem; color:var(--charcoal); margin-top:12px;}
+
   /* ---------- TICKET (order code) ---------- */
   .ticket{background:var(--ink); color:#fff; border-radius:16px; padding:26px 22px; text-align:center; position:relative; margin-bottom:18px;}
   .ticket::before, .ticket::after{content:""; position:absolute; width:22px; height:22px; background:var(--paper); border-radius:50%; top:50%; transform:translateY(-50%);}
@@ -216,8 +221,26 @@
     <div class="field"><label>No. HP</label><input type="tel" id="co-phone" placeholder="08xxxxxxxxxx" required></div>
     <div class="field" id="co-address-field" style="display:none;"><label>Alamat Pengantaran</label><textarea id="co-address" placeholder="Alamat lengkap untuk delivery"></textarea></div>
     <div class="field"><label>Catatan (opsional)</label><textarea id="co-notes" placeholder="mis. pedas sedikit, tanpa es, dll."></textarea></div>
-    <div class="hint" style="margin-bottom:14px;">Pembayaran dilakukan saat pesanan diambil/diantar. Simpan kode order yang muncul setelah ini untuk cek status.</div>
-    <button class="btn btn-primary btn-block" id="submit-order-btn">Buat Pesanan</button>
+    <button class="btn btn-primary btn-block" id="to-payment-btn">Lanjut ke Pembayaran</button>
+  </div>
+</div>
+
+<!-- ================= PAYMENT SHEET ================= -->
+<div class="sheet-backdrop" id="payment-sheet">
+  <div class="sheet">
+    <button class="close-x" onclick="closeSheet('payment-sheet')">✕</button>
+    <h2>Bayar dengan QRIS</h2>
+    <p class="sub">Pesanan diproses setelah pembayaran kamu diverifikasi.</p>
+    <div class="error-msg" id="payment-error"></div>
+    <div class="qris-box">
+      <img id="qris-img" src="" alt="QRIS" style="display:none;">
+      <div id="qris-loading" class="hint">Memuat QRIS...</div>
+      <div class="qris-amount" id="qris-amount">Rp 0</div>
+      <div class="hint" id="qris-merchant"></div>
+    </div>
+    <div class="field" style="margin-top:16px;"><label>No. Referensi / ID Transaksi</label><input type="text" id="pay-ref" placeholder="Dari struk atau riwayat transaksi e-wallet/m-banking kamu"></div>
+    <div class="hint" style="margin-bottom:14px;">Scan QRIS di atas, bayar sesuai nominal, lalu masukkan nomor referensi transaksinya di sini. Staf kami akan mengecek dan mengonfirmasi pembayaranmu.</div>
+    <button class="btn btn-primary btn-block" id="submit-order-btn">Saya Sudah Bayar — Buat Pesanan</button>
   </div>
 </div>
 
@@ -252,6 +275,7 @@ let cart = []; // {product_id, name, price, qty, stock}
 let activeCategory = 'all';
 let searchTerm = '';
 let orderType = 'pickup';
+let storeSettings = null;
 
 /* ============ HELPERS ============ */
 function rupiah(n){ return 'Rp ' + Math.round(n).toLocaleString('id-ID'); }
@@ -290,6 +314,11 @@ async function loadCategories(){
       renderProducts();
     });
   });
+}
+
+async function loadStoreSettings(){
+  const { data, error } = await sb.from('store_settings').select('*').eq('id', true).single();
+  if(!error) storeSettings = data;
 }
 
 async function loadProducts(){
@@ -404,14 +433,13 @@ document.querySelectorAll('.otype-tabs button').forEach(b=>{
   });
 });
 
-/* ============ CHECKOUT (guest, tanpa akun) ============ */
-document.getElementById('submit-order-btn').addEventListener('click', async ()=>{
+/* ============ CHECKOUT (guest, tanpa akun) — data pemesan lalu pembayaran ============ */
+document.getElementById('to-payment-btn').addEventListener('click', ()=>{
   const errEl = document.getElementById('checkout-error');
   errEl.style.display = 'none';
   const name = document.getElementById('co-name').value.trim();
   const phone = document.getElementById('co-phone').value.trim();
   const address = document.getElementById('co-address').value.trim();
-  const notes = document.getElementById('co-notes').value.trim();
 
   if(!name || !phone){
     errEl.textContent = 'Nama dan No. HP wajib diisi.';
@@ -429,6 +457,40 @@ document.getElementById('submit-order-btn').addEventListener('click', async ()=>
     return;
   }
 
+  const { total } = calcTotals();
+  document.getElementById('qris-amount').textContent = rupiah(total);
+  const img = document.getElementById('qris-img');
+  const loading = document.getElementById('qris-loading');
+  if(storeSettings && storeSettings.qris_image_url){
+    img.src = storeSettings.qris_image_url;
+    img.style.display = 'block';
+    loading.style.display = 'none';
+  } else {
+    img.style.display = 'none';
+    loading.textContent = 'QRIS belum tersedia. Hubungi kami secara langsung untuk pemesanan.';
+  }
+  document.getElementById('qris-merchant').textContent = storeSettings?.qris_merchant_name || '';
+  document.getElementById('pay-ref').value = '';
+  document.getElementById('payment-error').style.display = 'none';
+  closeSheet('checkout-sheet');
+  openSheet('payment-sheet');
+});
+
+document.getElementById('submit-order-btn').addEventListener('click', async ()=>{
+  const errEl = document.getElementById('payment-error');
+  errEl.style.display = 'none';
+  const ref = document.getElementById('pay-ref').value.trim();
+  if(!ref){
+    errEl.textContent = 'No. Referensi pembayaran wajib diisi.';
+    errEl.style.display = 'block';
+    return;
+  }
+
+  const name = document.getElementById('co-name').value.trim();
+  const phone = document.getElementById('co-phone').value.trim();
+  const address = document.getElementById('co-address').value.trim();
+  const notes = document.getElementById('co-notes').value.trim();
+
   const btn = document.getElementById('submit-order-btn');
   btn.disabled = true; btn.textContent = 'Memproses...';
   try{
@@ -442,7 +504,8 @@ document.getElementById('submit-order-btn').addEventListener('click', async ()=>
       p_customer_name: name,
       p_customer_phone: phone,
       p_notes: combinedNotes || null,
-      p_items: itemsPayload
+      p_items: itemsPayload,
+      p_transaction_ref: ref
     });
     if(orderErr) throw orderErr;
     const orderRow = rpcData[0];
@@ -457,13 +520,13 @@ document.getElementById('submit-order-btn').addEventListener('click', async ()=>
     document.getElementById('co-phone').value = '';
     document.getElementById('co-address').value = '';
     document.getElementById('co-notes').value = '';
-    closeSheet('checkout-sheet');
+    closeSheet('payment-sheet');
     openSheet('success-sheet');
   }catch(err){
     errEl.textContent = 'Gagal membuat pesanan: ' + err.message;
     errEl.style.display = 'block';
   }finally{
-    btn.disabled = false; btn.textContent = 'Buat Pesanan';
+    btn.disabled = false; btn.textContent = 'Saya Sudah Bayar — Buat Pesanan';
   }
 });
 
@@ -524,7 +587,8 @@ async function doTrack(){
       <div class="totals-line"><span>Subtotal</span><span>${rupiah(o.total_amount + (o.discount_amount||0))}</span></div>
       ${o.discount_amount>0 ? `<div class="totals-line"><span>Diskon</span><span>- ${rupiah(o.discount_amount)}</span></div>` : ''}
       <div class="totals-line" style="font-weight:800;color:var(--charcoal);"><span>Total</span><span>${rupiah(o.total_amount)}</span></div>
-      <div class="totals-line"><span>Pembayaran</span><span>${payLabel[o.payment_status]||o.payment_status}</span></div>
+      <div class="totals-line"><span>Pembayaran</span><span>${o.payment_status==='unpaid' ? 'Menunggu Verifikasi' : (payLabel[o.payment_status]||o.payment_status)}</span></div>
+      ${o.transaction_ref ? `<div class="totals-line"><span>No. Referensi</span><span style="font-family:var(--font-m);">${o.transaction_ref}</span></div>` : ''}
       ${o.pickup_time ? `<div class="totals-line"><span>Waktu Ambil</span><span>${new Date(o.pickup_time).toLocaleString('id-ID')}</span></div>` : ''}
       ${o.notes ? `<div class="hint" style="margin-top:8px;">Catatan: ${o.notes}</div>` : ''}
     `;
@@ -539,6 +603,7 @@ async function doTrack(){
 
 /* ============ INIT ============ */
 (async function init(){
+  await loadStoreSettings();
   await loadCategories();
   await loadProducts();
 })();
