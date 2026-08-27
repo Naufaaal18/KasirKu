@@ -229,18 +229,51 @@
 <div class="sheet-backdrop" id="payment-sheet">
   <div class="sheet">
     <button class="close-x" onclick="closeSheet('payment-sheet')">✕</button>
-    <h2>Bayar dengan QRIS</h2>
-    <p class="sub">Pesanan diproses setelah pembayaran kamu diverifikasi.</p>
+    <h2>Pembayaran</h2>
+    <p class="sub">Total: <strong id="pay-total-label">Rp 0</strong></p>
     <div class="error-msg" id="payment-error"></div>
-    <div class="qris-box">
-      <img id="qris-img" src="" alt="QRIS" style="display:none;">
-      <div id="qris-loading" class="hint">Memuat QRIS...</div>
-      <div class="qris-amount" id="qris-amount">Rp 0</div>
-      <div class="hint" id="qris-merchant"></div>
+
+    <div class="otype-tabs" id="pay-method-tabs">
+      <button class="active" data-method="qris">QRIS</button>
+      <button data-method="transfer">Transfer</button>
+      <button data-method="cash">Bayar di Tempat</button>
     </div>
-    <div class="field" style="margin-top:16px;"><label>No. Referensi / ID Transaksi</label><input type="text" id="pay-ref" placeholder="Dari struk atau riwayat transaksi e-wallet/m-banking kamu"></div>
-    <div class="hint" style="margin-bottom:14px;">Scan QRIS di atas, bayar sesuai nominal, lalu masukkan nomor referensi transaksinya di sini. Staf kami akan mengecek dan mengonfirmasi pembayaranmu.</div>
-    <button class="btn btn-primary btn-block" id="submit-order-btn">Saya Sudah Bayar — Buat Pesanan</button>
+
+    <div id="pay-panel-qris" class="pay-panel">
+      <div class="qris-box">
+        <img id="qris-img" src="" alt="QRIS" style="display:none;">
+        <div id="qris-loading" class="hint">Memuat QRIS...</div>
+        <div class="qris-amount" id="qris-amount">Rp 0</div>
+        <div class="hint" id="qris-merchant"></div>
+      </div>
+      <div class="field" style="margin-top:16px;"><label>No. Referensi / ID Transaksi</label><input type="text" id="pay-ref-qris" placeholder="Dari struk atau riwayat transaksi e-wallet/m-banking kamu"></div>
+      <div class="hint">Scan QRIS di atas, bayar sesuai nominal, lalu masukkan nomor referensi transaksinya. Staf kami akan mengecek dan mengonfirmasi pembayaranmu.</div>
+    </div>
+
+    <div id="pay-panel-transfer" class="pay-panel" style="display:none;">
+      <div class="qris-box" style="text-align:left;">
+        <div id="transfer-loading" class="hint" style="text-align:center;">Memuat info rekening...</div>
+        <div id="transfer-info" style="display:none;">
+          <div class="totals-line"><span>Bank</span><span id="tf-bank" style="font-weight:700;color:var(--charcoal)"></span></div>
+          <div class="totals-line"><span>No. Rekening</span><span id="tf-account" style="font-family:var(--font-m);font-weight:700;color:var(--charcoal)"></span></div>
+          <div class="totals-line"><span>Atas Nama</span><span id="tf-holder" style="font-weight:700;color:var(--charcoal)"></span></div>
+        </div>
+        <div class="qris-amount" id="transfer-amount" style="text-align:center;">Rp 0</div>
+      </div>
+      <div class="field" style="margin-top:16px;"><label>No. Referensi / ID Transaksi</label><input type="text" id="pay-ref-transfer" placeholder="Dari bukti transfer m-banking kamu"></div>
+      <div class="hint">Transfer sesuai nominal ke rekening di atas, lalu masukkan nomor referensi transaksinya. Staf kami akan mengecek dan mengonfirmasi pembayaranmu.</div>
+    </div>
+
+    <div id="pay-panel-cash" class="pay-panel" style="display:none;">
+      <div class="qris-box">
+        <div style="font-size:1.6rem;margin-bottom:8px;">💵</div>
+        <div style="font-weight:700;margin-bottom:4px;">Bayar Tunai di Tempat</div>
+        <div class="hint">Kamu bayar langsung tunai saat mengambil/menerima pesanan (COD). Tidak perlu bayar di muka.</div>
+        <div class="qris-amount" id="cash-amount">Rp 0</div>
+      </div>
+    </div>
+
+    <button class="btn btn-primary btn-block" id="submit-order-btn" style="margin-top:16px;">Buat Pesanan</button>
   </div>
 </div>
 
@@ -275,6 +308,7 @@ let cart = []; // {product_id, name, price, qty, stock}
 let activeCategory = 'all';
 let searchTerm = '';
 let orderType = 'pickup';
+let payMethod = 'qris';
 let storeSettings = null;
 
 /* ============ HELPERS ============ */
@@ -458,7 +492,12 @@ document.getElementById('to-payment-btn').addEventListener('click', ()=>{
   }
 
   const { total } = calcTotals();
-  document.getElementById('qris-amount').textContent = rupiah(total);
+  const totalText = rupiah(total);
+  document.getElementById('pay-total-label').textContent = totalText;
+  document.getElementById('qris-amount').textContent = totalText;
+  document.getElementById('transfer-amount').textContent = totalText;
+  document.getElementById('cash-amount').textContent = totalText;
+
   const img = document.getElementById('qris-img');
   const loading = document.getElementById('qris-loading');
   if(storeSettings && storeSettings.qris_image_url){
@@ -467,24 +506,68 @@ document.getElementById('to-payment-btn').addEventListener('click', ()=>{
     loading.style.display = 'none';
   } else {
     img.style.display = 'none';
-    loading.textContent = 'QRIS belum tersedia. Hubungi kami secara langsung untuk pemesanan.';
+    loading.style.display = 'block';
+    loading.textContent = 'QRIS belum tersedia. Coba metode Transfer atau Bayar di Tempat.';
   }
   document.getElementById('qris-merchant').textContent = storeSettings?.qris_merchant_name || '';
-  document.getElementById('pay-ref').value = '';
+
+  const tfInfo = document.getElementById('transfer-info');
+  const tfLoading = document.getElementById('transfer-loading');
+  if(storeSettings && storeSettings.bank_account_number){
+    document.getElementById('tf-bank').textContent = storeSettings.bank_name || '-';
+    document.getElementById('tf-account').textContent = storeSettings.bank_account_number;
+    document.getElementById('tf-holder').textContent = storeSettings.bank_account_holder || '-';
+    tfInfo.style.display = 'block';
+    tfLoading.style.display = 'none';
+  } else {
+    tfInfo.style.display = 'none';
+    tfLoading.style.display = 'block';
+    tfLoading.textContent = 'Info rekening belum tersedia. Coba metode QRIS atau Bayar di Tempat.';
+  }
+
+  document.getElementById('pay-ref-qris').value = '';
+  document.getElementById('pay-ref-transfer').value = '';
   document.getElementById('payment-error').style.display = 'none';
+  payMethod = 'qris';
+  document.querySelectorAll('#pay-method-tabs button').forEach(b=>b.classList.toggle('active', b.dataset.method==='qris'));
+  document.querySelectorAll('.pay-panel').forEach(p=>p.style.display='none');
+  document.getElementById('pay-panel-qris').style.display = 'block';
+  updateSubmitBtnLabel();
+
   closeSheet('checkout-sheet');
   openSheet('payment-sheet');
 });
 
+document.querySelectorAll('#pay-method-tabs button').forEach(b=>{
+  b.addEventListener('click', ()=>{
+    payMethod = b.dataset.method;
+    document.querySelectorAll('#pay-method-tabs button').forEach(x=>x.classList.remove('active'));
+    b.classList.add('active');
+    document.querySelectorAll('.pay-panel').forEach(p=>p.style.display='none');
+    document.getElementById('pay-panel-'+payMethod).style.display = 'block';
+    document.getElementById('payment-error').style.display = 'none';
+    updateSubmitBtnLabel();
+  });
+});
+
+function updateSubmitBtnLabel(){
+  const btn = document.getElementById('submit-order-btn');
+  btn.textContent = payMethod === 'cash' ? 'Buat Pesanan (Bayar di Tempat)' : 'Saya Sudah Bayar — Buat Pesanan';
+}
+
 document.getElementById('submit-order-btn').addEventListener('click', async ()=>{
   const errEl = document.getElementById('payment-error');
   errEl.style.display = 'none';
-  const ref = document.getElementById('pay-ref').value.trim();
-  if(!ref){
-    errEl.textContent = 'No. Referensi pembayaran wajib diisi.';
-    errEl.style.display = 'block';
-    return;
+
+  let ref = '';
+  if(payMethod === 'qris'){
+    ref = document.getElementById('pay-ref-qris').value.trim();
+    if(!ref){ errEl.textContent = 'No. Referensi pembayaran wajib diisi.'; errEl.style.display = 'block'; return; }
+  } else if(payMethod === 'transfer'){
+    ref = document.getElementById('pay-ref-transfer').value.trim();
+    if(!ref){ errEl.textContent = 'No. Referensi pembayaran wajib diisi.'; errEl.style.display = 'block'; return; }
   }
+  // cash: tidak perlu referensi
 
   const name = document.getElementById('co-name').value.trim();
   const phone = document.getElementById('co-phone').value.trim();
@@ -505,7 +588,8 @@ document.getElementById('submit-order-btn').addEventListener('click', async ()=>
       p_customer_phone: phone,
       p_notes: combinedNotes || null,
       p_items: itemsPayload,
-      p_transaction_ref: ref
+      p_payment_method: payMethod,
+      p_transaction_ref: ref || null
     });
     if(orderErr) throw orderErr;
     const orderRow = rpcData[0];
@@ -526,7 +610,7 @@ document.getElementById('submit-order-btn').addEventListener('click', async ()=>
     errEl.textContent = 'Gagal membuat pesanan: ' + err.message;
     errEl.style.display = 'block';
   }finally{
-    btn.disabled = false; btn.textContent = 'Saya Sudah Bayar — Buat Pesanan';
+    btn.disabled = false; updateSubmitBtnLabel();
   }
 });
 
@@ -587,7 +671,8 @@ async function doTrack(){
       <div class="totals-line"><span>Subtotal</span><span>${rupiah(o.total_amount + (o.discount_amount||0))}</span></div>
       ${o.discount_amount>0 ? `<div class="totals-line"><span>Diskon</span><span>- ${rupiah(o.discount_amount)}</span></div>` : ''}
       <div class="totals-line" style="font-weight:800;color:var(--charcoal);"><span>Total</span><span>${rupiah(o.total_amount)}</span></div>
-      <div class="totals-line"><span>Pembayaran</span><span>${o.payment_status==='unpaid' ? 'Menunggu Verifikasi' : (payLabel[o.payment_status]||o.payment_status)}</span></div>
+      <div class="totals-line"><span>Metode</span><span>${o.payment_method==='cash' ? 'Bayar di Tempat (COD)' : (o.payment_method==='qris' ? 'QRIS' : 'Transfer')}</span></div>
+      <div class="totals-line"><span>Pembayaran</span><span>${o.payment_status==='unpaid' ? (o.payment_method==='cash' ? 'Bayar Saat Diterima' : 'Menunggu Verifikasi') : (payLabel[o.payment_status]||o.payment_status)}</span></div>
       ${o.transaction_ref ? `<div class="totals-line"><span>No. Referensi</span><span style="font-family:var(--font-m);">${o.transaction_ref}</span></div>` : ''}
       ${o.pickup_time ? `<div class="totals-line"><span>Waktu Ambil</span><span>${new Date(o.pickup_time).toLocaleString('id-ID')}</span></div>` : ''}
       ${o.notes ? `<div class="hint" style="margin-top:8px;">Catatan: ${o.notes}</div>` : ''}

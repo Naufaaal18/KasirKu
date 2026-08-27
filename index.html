@@ -343,9 +343,9 @@
       </table>
 
       <div style="margin-top:32px; background:#fff; border:1.5px solid var(--paper-line); border-radius:12px; padding:20px; max-width:420px;">
-        <h3 style="margin:0 0 4px; font-size:1rem; font-weight:800;">QRIS untuk Pesan Online</h3>
-        <p style="color:var(--muted); font-size:.8rem; margin:0 0 14px;">Gambar ini ditampilkan ke customer di halaman pesan.html saat checkout.</p>
-        <div class="field"><label>Nama Merchant (opsional)</label><input type="text" id="qris-merchant-input" placeholder="mis. Kasirku Coffee"></div>
+        <h3 style="margin:0 0 4px; font-size:1rem; font-weight:800;">Pembayaran untuk Pesan Online</h3>
+        <p style="color:var(--muted); font-size:.8rem; margin:0 0 14px;">Ditampilkan ke customer di halaman pesan.html saat checkout (QRIS &amp; Transfer).</p>
+        <div class="field"><label>Nama Merchant QRIS (opsional)</label><input type="text" id="qris-merchant-input" placeholder="mis. Kasirku Coffee"></div>
         <div class="field">
           <label>Gambar QRIS</label>
           <input type="file" id="qris-file-input" accept="image/*">
@@ -353,7 +353,11 @@
         <div id="qris-preview-wrap" style="margin-bottom:12px; display:none;">
           <img id="qris-preview" style="width:160px; border-radius:8px; border:1.5px solid var(--paper-line);">
         </div>
-        <button class="btn btn-primary" id="save-qris-btn">Simpan QRIS</button>
+        <hr style="border:none;border-top:1px dashed var(--paper-line);margin:16px 0;">
+        <div class="field"><label>Nama Bank</label><input type="text" id="bank-name-input" placeholder="mis. BCA"></div>
+        <div class="field"><label>No. Rekening</label><input type="text" id="bank-account-input" placeholder="mis. 1234567890"></div>
+        <div class="field"><label>Atas Nama</label><input type="text" id="bank-holder-input" placeholder="mis. Naufal Ramadhan"></div>
+        <button class="btn btn-primary" id="save-qris-btn">Simpan Pengaturan</button>
       </div>
     </section>
   </main>
@@ -900,6 +904,9 @@ async function loadQrisSettings(){
   const { data } = await sb.from('store_settings').select('*').eq('id', true).single();
   if(data){
     document.getElementById('qris-merchant-input').value = data.qris_merchant_name || '';
+    document.getElementById('bank-name-input').value = data.bank_name || '';
+    document.getElementById('bank-account-input').value = data.bank_account_number || '';
+    document.getElementById('bank-holder-input').value = data.bank_account_holder || '';
     if(data.qris_image_url){
       document.getElementById('qris-preview').src = data.qris_image_url;
       document.getElementById('qris-preview-wrap').style.display = 'block';
@@ -931,11 +938,17 @@ document.getElementById('save-qris-btn').addEventListener('click', async ()=>{
       const { data: pub } = sb.storage.from('store-assets').getPublicUrl(path);
       imageUrl = pub.publicUrl;
     }
-    const payload = { qris_merchant_name: merchantName, updated_at: new Date().toISOString() };
+    const payload = {
+      qris_merchant_name: merchantName,
+      bank_name: document.getElementById('bank-name-input').value.trim() || null,
+      bank_account_number: document.getElementById('bank-account-input').value.trim() || null,
+      bank_account_holder: document.getElementById('bank-holder-input').value.trim() || null,
+      updated_at: new Date().toISOString()
+    };
     if(imageUrl) payload.qris_image_url = imageUrl;
     const { error } = await sb.from('store_settings').update(payload).eq('id', true);
     if(error) throw error;
-    toast('Pengaturan QRIS disimpan.');
+    toast('Pengaturan pembayaran disimpan.');
   }catch(err){
     toast('Gagal menyimpan QRIS: ' + err.message);
   }finally{
