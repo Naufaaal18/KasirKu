@@ -432,30 +432,20 @@ document.getElementById('submit-order-btn').addEventListener('click', async ()=>
   const btn = document.getElementById('submit-order-btn');
   btn.disabled = true; btn.textContent = 'Memproses...';
   try{
-    const { subtotal, total } = calcTotals();
     const orderNumber = 'INV' + Date.now();
     const combinedNotes = orderType==='delivery' && address ? `Alamat: ${address}${notes? ' | '+notes : ''}` : notes;
+    const itemsPayload = cart.map(c=>({ product_id: c.product_id, quantity: c.qty }));
 
-    const { data: orderRow, error: orderErr } = await sb.from('orders').insert({
-      order_number: orderNumber,
-      order_type: orderType,
-      payment_status: 'unpaid',
-      order_status: 'pending',
-      total_amount: total,
-      discount_amount: 0,
-      cashier_id: null,
-      customer_name: name,
-      customer_phone: phone,
-      notes: combinedNotes || null
-    }).select().single();
+    const { data: rpcData, error: orderErr } = await sb.rpc('create_guest_order', {
+      p_order_number: orderNumber,
+      p_order_type: orderType,
+      p_customer_name: name,
+      p_customer_phone: phone,
+      p_notes: combinedNotes || null,
+      p_items: itemsPayload
+    });
     if(orderErr) throw orderErr;
-
-    const itemsPayload = cart.map(c=>({
-      order_id: orderRow.id, product_id: c.product_id, quantity: c.qty,
-      unit_price: c.price, subtotal: c.price*c.qty
-    }));
-    const { error: itemsErr } = await sb.from('order_items').insert(itemsPayload);
-    if(itemsErr) throw itemsErr;
+    const orderRow = rpcData[0];
 
     document.getElementById('tk-code').textContent = orderRow.order_code;
     document.getElementById('tk-num').textContent = orderRow.order_number;
