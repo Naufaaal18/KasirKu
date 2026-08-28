@@ -211,6 +211,7 @@
     <p class="sub">Periksa pesanan sebelum lanjut ke data pemesan.</p>
     <div class="cart-items" id="cart-items"></div>
     <div class="tear"></div>
+    <div class="totals-line"><span>Total Qty Item</span><span id="sum-qty">0</span></div>
     <div class="totals-line"><span>Subtotal</span><span id="sum-subtotal">Rp 0</span></div>
     <div class="total-display" id="sum-total">Rp 0</div>
     <button class="btn btn-primary btn-block" id="to-checkout-btn">Lanjut ke Data Pemesan</button>
@@ -458,6 +459,8 @@ function renderCart(){
     `).join('');
   }
   const { subtotal, total } = calcTotals();
+  const totalQty = cart.reduce((s,c)=>s+c.qty,0);
+  document.getElementById('sum-qty').textContent = totalQty;
   document.getElementById('sum-subtotal').textContent = rupiah(subtotal);
   document.getElementById('sum-total').textContent = rupiah(total);
 }
