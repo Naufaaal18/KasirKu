@@ -153,9 +153,10 @@
   .dash-grid{display:grid; grid-template-columns:1.5fr 1fr; gap:18px; align-items:start;}
   .dash-panel{background:#fff; border:1px solid var(--paper-line); border-radius:var(--radius-lg); box-shadow:var(--shadow-sm); padding:20px 22px;}
   .dash-panel h3{margin:0 0 16px; font-size:1rem; font-weight:600;}
-  table.dash-table{width:100%; border-collapse:collapse; font-size:.82rem;}
+  table.dash-table{width:100%; border-collapse:collapse; font-size:.82rem; table-layout:fixed;}
   table.dash-table th{text-align:left; font-size:.68rem; text-transform:uppercase; letter-spacing:.5px; color:var(--muted); padding:0 8px 10px; font-weight:700;}
-  table.dash-table td{padding:9px 8px; border-top:1px solid var(--paper-line);}
+  table.dash-table td{padding:9px 8px; border-top:1px solid var(--paper-line); overflow-wrap:break-word;}
+  table.dash-table th:nth-child(4), table.dash-table td:nth-child(4){width:32%;}
   table.dash-table tr:first-child td{border-top:none;}
   .chart-wrap{position:relative; height:260px;}
 
@@ -458,7 +459,7 @@
         <div class="dash-panel">
           <h3>Data Penjualan Terbaru</h3>
           <table class="dash-table">
-            <thead><tr><th>No</th><th>Kasir</th><th>Tgl Transaksi</th><th>Produk</th><th>Qty</th><th>Sub Total</th></tr></thead>
+            <thead><tr><th>No. Pesanan</th><th>Kasir</th><th>Tgl Transaksi</th><th>Produk</th><th>Qty</th><th>Total</th></tr></thead>
             <tbody id="dash-recent-sales"><tr><td colspan="6" style="color:var(--muted);padding:14px 8px;">Memuat...</td></tr></tbody>
           </table>
         </div>
@@ -960,35 +961,27 @@ async function loadDashboard(){
 async function loadRecentSales(){
   const tbody = document.getElementById('dash-recent-sales');
   const { data, error } = await sb.from('orders')
-    .select('order_number, created_at, profiles(name), order_items(quantity, subtotal, products(name))')
+    .select('order_number, created_at, total_amount, profiles(name), order_items(quantity, products(name))')
     .order('created_at', { ascending:false })
-    .limit(5);
+    .limit(7);
   if(error){ tbody.innerHTML = `<tr><td colspan="6" style="color:var(--red);padding:14px 8px;">Gagal memuat: ${error.message}</td></tr>`; return; }
+  if(!data || data.length===0){ tbody.innerHTML = `<tr><td colspan="6" style="color:var(--muted);padding:14px 8px;">Belum ada transaksi.</td></tr>`; return; }
 
-  const rows = [];
-  (data||[]).forEach(o=>{
-    (o.order_items||[]).forEach(it=>{
-      rows.push({
-        kasir: o.profiles?.name || '-',
-        tgl: new Date(o.created_at).toLocaleDateString('id-ID'),
-        produk: it.products?.name || 'produk',
-        qty: it.quantity,
-        subtotal: it.subtotal
-      });
-    });
-  });
-  const top = rows.slice(0, 7);
-  if(top.length===0){ tbody.innerHTML = `<tr><td colspan="6" style="color:var(--muted);padding:14px 8px;">Belum ada transaksi.</td></tr>`; return; }
-  tbody.innerHTML = top.map((r,i)=>`
+  tbody.innerHTML = data.map(o=>{
+    const items = o.order_items || [];
+    const produkText = items.map(it => (it.products?.name || 'produk') + ' ×' + it.quantity).join(', ') || '-';
+    const totalQty = items.reduce((s,it)=> s + Number(it.quantity||0), 0);
+    return `
     <tr>
-      <td data-label="No">${i+1}</td>
-      <td data-label="Kasir">${r.kasir}</td>
-      <td data-label="Tgl Transaksi">${r.tgl}</td>
-      <td data-label="Produk">${r.produk}</td>
-      <td data-label="Qty">${r.qty} pcs</td>
-      <td data-label="Sub Total">${rupiah(r.subtotal)}</td>
+      <td data-label="No. Pesanan" style="font-family:var(--font-m);font-weight:700;">${o.order_number}</td>
+      <td data-label="Kasir">${o.profiles?.name || '-'}</td>
+      <td data-label="Tgl Transaksi">${new Date(o.created_at).toLocaleDateString('id-ID')}</td>
+      <td data-label="Produk">${produkText}</td>
+      <td data-label="Qty">${totalQty} pcs</td>
+      <td data-label="Total">${rupiah(o.total_amount)}</td>
     </tr>
-  `).join('');
+  `;
+  }).join('');
 }
 
 async function loadSalesChart(){
