@@ -520,7 +520,7 @@
       </div>
       <p style="color:var(--muted); font-size:.83rem; margin:-10px 0 18px;">Hanya admin yang bisa membuat akun staf baru. Tidak ada pendaftaran mandiri.</p>
       <table class="admin-table">
-        <thead><tr><th>Nama</th><th>Email</th><th>Role</th><th>Bergabung</th></tr></thead>
+        <thead><tr><th>Nama</th><th>Email</th><th>Role</th><th>Bergabung</th><th>Aksi</th></tr></thead>
         <tbody id="staff-table-body"></tbody>
       </table>
     </section>
@@ -618,6 +618,29 @@
     <div class="modal-actions">
       <button class="btn btn-ghost" onclick="closeModal('staff-modal')">Batal</button>
       <button class="btn btn-primary" id="save-staff-btn">Buat Akun</button>
+    </div>
+  </div>
+</div>
+
+<!-- ================= EDIT STAFF ROLE MODAL (admin) ================= -->
+<div class="modal-backdrop" id="edit-role-modal">
+  <div class="modal">
+    <button class="close-x" onclick="closeModal('edit-role-modal')">✕</button>
+    <h2>Ubah Role Staf</h2>
+    <p class="sub" id="er-name-sub">-</p>
+    <div class="error-msg" id="er-error"></div>
+    <div class="field">
+      <label>Role</label>
+      <select id="er-role">
+        <option value="cashier">Kasir</option>
+        <option value="kitchen">Dapur</option>
+        <option value="admin">Admin</option>
+      </select>
+      <div class="hint" id="er-hint" style="display:none;color:var(--muted);font-size:.78rem;margin-top:6px;">Role admin tidak bisa diturunkan ke role lain di sini, demi keamanan akun.</div>
+    </div>
+    <div class="modal-actions">
+      <button class="btn btn-ghost" onclick="closeModal('edit-role-modal')">Batal</button>
+      <button class="btn btn-primary" id="save-role-btn">Simpan</button>
     </div>
   </div>
 </div>
@@ -763,21 +786,66 @@ function switchView(name){
 
 /* ============ STAFF (ADMIN) ============ */
 const roleLabel = { admin:'Admin', cashier:'Kasir', kitchen:'Dapur' };
+let staffCache = [];
 async function loadStaff(){
   const body = document.getElementById('staff-table-body');
-  body.innerHTML = '<tr><td colspan="4" style="color:var(--muted);padding:14px 8px;">Memuat...</td></tr>';
+  body.innerHTML = '<tr><td colspan="5" style="color:var(--muted);padding:14px 8px;">Memuat...</td></tr>';
   const { data, error } = await sb.from('profiles').select('*').order('created_at', { ascending:true });
-  if(error){ body.innerHTML = `<tr><td colspan="4">Gagal memuat: ${error.message}</td></tr>`; return; }
-  if(!data || data.length===0){ body.innerHTML = '<tr><td colspan="4" style="color:var(--muted);padding:14px 8px;">Belum ada staf.</td></tr>'; return; }
-  body.innerHTML = data.map(p=>`
+  if(error){ body.innerHTML = `<tr><td colspan="5">Gagal memuat: ${error.message}</td></tr>`; return; }
+  staffCache = data || [];
+  if(staffCache.length===0){ body.innerHTML = '<tr><td colspan="5" style="color:var(--muted);padding:14px 8px;">Belum ada staf.</td></tr>'; return; }
+  body.innerHTML = staffCache.map(p=>`
     <tr>
       <td>${p.name || '-'}</td>
       <td>${p.email || '-'}</td>
       <td><span class="role-badge">${roleLabel[p.role] || p.role}</span></td>
       <td>${p.created_at ? new Date(p.created_at).toLocaleDateString('id-ID') : '-'}</td>
+      <td><button class="btn btn-ghost" style="padding:6px 12px;font-size:.78rem;" onclick="openEditRole('${p.id}')">Edit Role</button></td>
     </tr>
   `).join('');
 }
+function openEditRole(id){
+  const p = staffCache.find(s=>s.id===id);
+  if(!p) return;
+  document.getElementById('edit-role-modal').dataset.staffId = id;
+  document.getElementById('er-name-sub').textContent = `${p.name || p.email} — role saat ini: ${roleLabel[p.role] || p.role}`;
+  document.getElementById('er-error').style.display = 'none';
+  const roleSelect = document.getElementById('er-role');
+  const hint = document.getElementById('er-hint');
+  const saveBtn = document.getElementById('save-role-btn');
+  roleSelect.value = p.role;
+  if(p.role === 'admin'){
+    // Admin tidak boleh diturunkan rolenya dari sini, oleh admin manapun (termasuk dirinya sendiri).
+    roleSelect.disabled = true;
+    hint.style.display = 'block';
+    saveBtn.disabled = true;
+  } else {
+    roleSelect.disabled = false;
+    hint.style.display = 'none';
+    saveBtn.disabled = false;
+  }
+  openModal('edit-role-modal');
+}
+document.getElementById('save-role-btn').addEventListener('click', async ()=>{
+  const id = document.getElementById('edit-role-modal').dataset.staffId;
+  const newRole = document.getElementById('er-role').value;
+  const errEl = document.getElementById('er-error');
+  errEl.style.display = 'none';
+  const btn = document.getElementById('save-role-btn');
+  btn.disabled = true; btn.textContent = 'Menyimpan...';
+  try{
+    const { error } = await sb.from('profiles').update({ role: newRole }).eq('id', id);
+    if(error) throw error;
+    toast('Role staf diperbarui.');
+    closeModal('edit-role-modal');
+    await loadStaff();
+  }catch(err){
+    errEl.textContent = err.message || 'Gagal mengubah role.';
+    errEl.style.display = 'block';
+  }finally{
+    btn.disabled = false; btn.textContent = 'Simpan';
+  }
+});
 document.getElementById('add-staff-btn').addEventListener('click', ()=>{
   ['ns-name','ns-email','ns-password'].forEach(id=>document.getElementById(id).value='');
   document.getElementById('ns-role').value = 'cashier';
