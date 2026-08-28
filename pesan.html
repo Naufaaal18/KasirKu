@@ -213,7 +213,7 @@
     <h2>Data Pemesan</h2>
     <p class="sub">Tanpa perlu buat akun — cukup isi data di bawah ini.</p>
     <div class="error-msg" id="checkout-error"></div>
-    <div class="otype-tabs">
+    <div class="otype-tabs" id="order-type-tabs">
       <button class="active" data-otype="pickup">Ambil di Tempat</button>
       <button data-otype="delivery">Diantar</button>
     </div>
@@ -458,10 +458,10 @@ document.getElementById('to-checkout-btn').addEventListener('click', ()=>{
   openSheet('checkout-sheet');
 });
 
-document.querySelectorAll('.otype-tabs button').forEach(b=>{
+document.querySelectorAll('#order-type-tabs button').forEach(b=>{
   b.addEventListener('click', ()=>{
     orderType = b.dataset.otype;
-    document.querySelectorAll('.otype-tabs button').forEach(x=>x.classList.remove('active'));
+    document.querySelectorAll('#order-type-tabs button').forEach(x=>x.classList.remove('active'));
     b.classList.add('active');
     document.getElementById('co-address-field').style.display = orderType==='delivery' ? 'block' : 'none';
   });
