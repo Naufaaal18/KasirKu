@@ -372,7 +372,22 @@
     table.admin-table td.td-photo{justify-content:flex-start;}
     table.admin-table input.inline-stock{width:88px; text-align:right; margin-left:auto;}
     table.admin-table td.td-actions{justify-content:flex-end; gap:8px;}
-    table.dash-table td{text-align:right; white-space:normal; word-break:break-word;}
+    table.dash-table td{text-align:right; white-space:normal; overflow-wrap:break-word;}
+
+    /* Kolom Produk berisi teks panjang (daftar item) -> label di atas,
+       teks di bawah, rata kiri, wrap per-kata (bukan per-huruf) supaya enak dibaca */
+    table.dash-table td[data-label="Produk"],
+    table.admin-table td[data-label="Produk"]{
+      display:block; text-align:left;
+    }
+    table.dash-table td[data-label="Produk"]::before,
+    table.admin-table td[data-label="Produk"]::before{
+      display:block; text-align:left; margin-bottom:6px;
+    }
+    table.dash-table td[data-label="Produk"] .produk-list,
+    table.admin-table td[data-label="Produk"] .produk-list{
+      display:block; width:100%; line-height:1.6; word-break:normal; overflow-wrap:break-word;
+    }
 
     .dash-panel{padding:16px 16px;}
     .qris-settings-card{max-width:none !important; width:100%;}
@@ -976,7 +991,7 @@ async function loadRecentSales(){
       <td data-label="No. Pesanan" style="font-family:var(--font-m);font-weight:700;">${o.order_number}</td>
       <td data-label="Kasir">${o.profiles?.name || '-'}</td>
       <td data-label="Tgl Transaksi">${new Date(o.created_at).toLocaleDateString('id-ID')}</td>
-      <td data-label="Produk">${produkText}</td>
+      <td data-label="Produk"><span class="produk-list">${produkText}</span></td>
       <td data-label="Qty">${totalQty} pcs</td>
       <td data-label="Total">${rupiah(o.total_amount)}</td>
     </tr>
