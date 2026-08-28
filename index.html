@@ -577,7 +577,7 @@
 <div class="modal-backdrop" id="product-modal">
   <div class="modal">
     <button class="close-x" onclick="closeModal('product-modal')">✕</button>
-    <h2>Tambah Produk</h2>
+    <h2 id="product-modal-title">Tambah Produk</h2>
     <div class="field"><label>Nama Produk</label><input type="text" id="np-name"></div>
     <div class="field"><label>Kategori (baru atau lama)</label><input type="text" id="np-category" placeholder="mis. Minuman"></div>
     <div class="field"><label>SKU</label><input type="text" id="np-sku"></div>
@@ -657,6 +657,7 @@ const sb = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 let profile = null;
 let categories = [];
 let products = [];
+let editingProductId = null;
 let cart = []; // {product_id, name, price, qty, stock}
 let salesChart = null;
 let activeCategory = 'all';
@@ -1319,9 +1320,15 @@ function renderProductsAdmin(){
       <td>${rupiah(p.price)}</td>
       <td><input class="inline-stock" type="number" value="${p.stock}" data-id="${p.id}"></td>
       <td><button class="toggle-active ${p.is_active?'toggle-on':'toggle-off'}" data-id="${p.id}" data-active="${p.is_active}">${p.is_active?'Aktif':'Nonaktif'}</button></td>
-      <td><button class="btn-delete-product" data-id="${p.id}" data-name="${p.name.replace(/"/g,'&quot;')}" title="Hapus produk" style="background:none;border:none;color:#c0392b;cursor:pointer;font-size:1.1rem;">🗑️</button></td>
+      <td>
+        <button class="btn-edit-product" data-id="${p.id}" title="Edit produk" style="background:none;border:none;color:var(--amber);cursor:pointer;font-size:1.05rem;margin-right:6px;">✏️</button>
+        <button class="btn-delete-product" data-id="${p.id}" data-name="${p.name.replace(/"/g,'&quot;')}" title="Hapus produk" style="background:none;border:none;color:#c0392b;cursor:pointer;font-size:1.1rem;">🗑️</button>
+      </td>
     </tr>
   `).join('');
+  body.querySelectorAll('.btn-edit-product').forEach(btn=>{
+    btn.addEventListener('click', ()=> openEditProduct(btn.dataset.id));
+  });
   body.querySelectorAll('.inline-stock').forEach(inp=>{
     inp.addEventListener('change', async ()=>{
       const { error } = await sb.from('products').update({ stock: Number(inp.value) }).eq('id', inp.dataset.id);
@@ -1411,10 +1418,31 @@ document.getElementById('save-qris-btn').addEventListener('click', async ()=>{
 });
 
 document.getElementById('add-product-btn').addEventListener('click', ()=>{
+  editingProductId = null;
+  document.getElementById('product-modal-title').textContent = 'Tambah Produk';
   ['np-name','np-category','np-sku','np-price','np-stock','np-image-input'].forEach(id=>document.getElementById(id).value='');
   document.getElementById('np-image-preview-wrap').style.display = 'none';
   openModal('product-modal');
 });
+function openEditProduct(id){
+  const p = products.find(x=>x.id===id);
+  if(!p) return;
+  editingProductId = id;
+  document.getElementById('product-modal-title').textContent = 'Edit Produk';
+  document.getElementById('np-name').value = p.name || '';
+  document.getElementById('np-category').value = p.categories?.name || '';
+  document.getElementById('np-sku').value = p.sku || '';
+  document.getElementById('np-price').value = p.price || 0;
+  document.getElementById('np-stock').value = p.stock || 0;
+  document.getElementById('np-image-input').value = '';
+  if(p.image_url){
+    document.getElementById('np-image-preview').src = p.image_url;
+    document.getElementById('np-image-preview-wrap').style.display = 'block';
+  } else {
+    document.getElementById('np-image-preview-wrap').style.display = 'none';
+  }
+  openModal('product-modal');
+}
 document.getElementById('np-image-input').addEventListener('change', (e)=>{
   const file = e.target.files[0];
   if(!file) return;
@@ -1445,8 +1473,8 @@ document.getElementById('save-product-btn').addEventListener('click', async ()=>
       }
       categoryId = cat.id;
     }
-    let imageUrl = null;
     const imageFile = document.getElementById('np-image-input').files[0];
+    let imageUrl = editingProductId ? (products.find(x=>x.id===editingProductId)?.image_url || null) : null;
     if(imageFile){
       const ext = imageFile.name.split('.').pop();
       const path = `products/${Date.now()}.${ext}`;
@@ -1455,10 +1483,17 @@ document.getElementById('save-product-btn').addEventListener('click', async ()=>
       const { data: pub } = sb.storage.from('store-assets').getPublicUrl(path);
       imageUrl = pub.publicUrl;
     }
-    const { error } = await sb.from('products').insert({ name, sku, price, stock, category_id: categoryId, is_active:true, image_url: imageUrl });
-    if(error) throw error;
-    toast('Produk ditambahkan.');
+    if(editingProductId){
+      const { error } = await sb.from('products').update({ name, sku, price, stock, category_id: categoryId, image_url: imageUrl }).eq('id', editingProductId);
+      if(error) throw error;
+      toast('Produk diperbarui.');
+    } else {
+      const { error } = await sb.from('products').insert({ name, sku, price, stock, category_id: categoryId, is_active:true, image_url: imageUrl });
+      if(error) throw error;
+      toast('Produk ditambahkan.');
+    }
     closeModal('product-modal');
+    editingProductId = null;
     await loadCategories();
     await loadProducts(true);
   }catch(err){
