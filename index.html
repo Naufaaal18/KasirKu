@@ -337,6 +337,36 @@
     .cart-panel{position:static; max-height:none;}
     main{padding:18px 16px 36px;}
   }
+
+  /* ---------- ADMIN TABLES -> CARDS ON MOBILE ---------- */
+  @media(max-width:680px){
+    .prod-admin-head{flex-direction:column; align-items:stretch; gap:10px;}
+    .prod-admin-head h2{font-size:1.15rem;}
+    .prod-admin-head .btn{width:100%;}
+
+    table.admin-table{border:none; box-shadow:none; background:transparent; border-radius:0;}
+    table.admin-table thead{display:none;}
+    table.admin-table, table.admin-table tbody, table.admin-table tr, table.admin-table td{display:block; width:100%;}
+    table.admin-table tr{
+      background:#fff; border:1px solid var(--paper-line); border-radius:var(--radius);
+      box-shadow:var(--shadow-sm); margin-bottom:12px; padding:4px 14px; overflow:hidden;
+    }
+    table.admin-table td{
+      display:flex; align-items:center; justify-content:space-between; gap:14px;
+      padding:10px 0; border-top:1px solid var(--paper-line); font-size:.85rem; text-align:right;
+    }
+    table.admin-table tr td:first-child{border-top:none;}
+    table.admin-table td::before{
+      content:attr(data-label); flex:0 0 auto; font-size:.66rem; font-weight:700;
+      text-transform:uppercase; letter-spacing:.4px; color:var(--muted); text-align:left;
+    }
+    table.admin-table td[data-label=""]::before{content:none;}
+    table.admin-table td.td-photo{justify-content:flex-start;}
+    table.admin-table input.inline-stock{width:88px; text-align:right; margin-left:auto;}
+    table.admin-table td.td-actions{justify-content:flex-end; gap:8px;}
+
+    .qris-settings-card{max-width:none !important; width:100%;}
+  }
 </style>
 </head>
 <body>
@@ -493,7 +523,7 @@
         <tbody id="products-table-body"></tbody>
       </table>
 
-      <div style="margin-top:32px; background:#fff; border:1px solid var(--paper-line); border-radius:var(--radius-lg); padding:22px; max-width:420px; box-shadow:var(--shadow-sm);">
+      <div class="qris-settings-card" style="margin-top:32px; background:#fff; border:1px solid var(--paper-line); border-radius:var(--radius-lg); padding:22px; max-width:420px; box-shadow:var(--shadow-sm);">
         <h3 style="margin:0 0 4px; font-size:1.05rem; font-weight:600; font-family:var(--font-h);">Pembayaran untuk Pesan Online</h3>
         <p style="color:var(--muted); font-size:.8rem; margin:0 0 16px;">Ditampilkan ke customer di halaman pesan.html saat checkout (QRIS &amp; Transfer).</p>
         <div class="field"><label>Nama Merchant QRIS (opsional)</label><input type="text" id="qris-merchant-input" placeholder="mis. Kasirku Coffee"></div>
@@ -797,11 +827,11 @@ async function loadStaff(){
   if(staffCache.length===0){ body.innerHTML = '<tr><td colspan="5" style="color:var(--muted);padding:14px 8px;">Belum ada staf.</td></tr>'; return; }
   body.innerHTML = staffCache.map(p=>`
     <tr>
-      <td>${p.name || '-'}</td>
-      <td>${p.email || '-'}</td>
-      <td><span class="role-badge">${roleLabel[p.role] || p.role}</span></td>
-      <td>${p.created_at ? new Date(p.created_at).toLocaleDateString('id-ID') : '-'}</td>
-      <td><button class="btn btn-ghost" style="padding:6px 12px;font-size:.78rem;" onclick="openEditRole('${p.id}')">Edit Role</button></td>
+      <td data-label="Nama">${p.name || '-'}</td>
+      <td data-label="Email">${p.email || '-'}</td>
+      <td data-label="Role"><span class="role-badge">${roleLabel[p.role] || p.role}</span></td>
+      <td data-label="Bergabung">${p.created_at ? new Date(p.created_at).toLocaleDateString('id-ID') : '-'}</td>
+      <td class="td-actions" data-label=""><button class="btn btn-ghost" style="padding:6px 12px;font-size:.78rem;width:100%;" onclick="openEditRole('${p.id}')">Edit Role</button></td>
     </tr>
   `).join('');
 }
@@ -1311,16 +1341,16 @@ function renderProductsAdmin(){
   const body = document.getElementById('products-table-body');
   body.innerHTML = products.map(p=>`
     <tr>
-      <td>${p.image_url
+      <td class="td-photo" data-label="">${p.image_url
         ? `<img src="${p.image_url}" style="width:44px;height:44px;object-fit:cover;border-radius:6px;border:1px solid var(--paper-line);">`
         : `<div style="width:44px;height:44px;border-radius:6px;background:var(--paper);border:1px solid var(--paper-line);display:flex;align-items:center;justify-content:center;color:var(--muted);font-size:.65rem;">-</div>`}
       </td>
-      <td>${p.name}<br><span style="color:var(--muted);font-size:.72rem">${p.sku||''}</span></td>
-      <td>${p.categories?.name || '-'}</td>
-      <td>${rupiah(p.price)}</td>
-      <td><input class="inline-stock" type="number" value="${p.stock}" data-id="${p.id}"></td>
-      <td><button class="toggle-active ${p.is_active?'toggle-on':'toggle-off'}" data-id="${p.id}" data-active="${p.is_active}">${p.is_active?'Aktif':'Nonaktif'}</button></td>
-      <td>
+      <td data-label="Produk">${p.name}<br><span style="color:var(--muted);font-size:.72rem">${p.sku||''}</span></td>
+      <td data-label="Kategori">${p.categories?.name || '-'}</td>
+      <td data-label="Harga">${rupiah(p.price)}</td>
+      <td data-label="Stok"><input class="inline-stock" type="number" value="${p.stock}" data-id="${p.id}"></td>
+      <td data-label="Status"><button class="toggle-active ${p.is_active?'toggle-on':'toggle-off'}" data-id="${p.id}" data-active="${p.is_active}">${p.is_active?'Aktif':'Nonaktif'}</button></td>
+      <td class="td-actions" data-label="Aksi">
         <button class="btn-edit-product" data-id="${p.id}" title="Edit produk" style="background:none;border:none;color:var(--amber);cursor:pointer;font-size:1.05rem;margin-right:6px;">✏️</button>
         <button class="btn-delete-product" data-id="${p.id}" data-name="${p.name.replace(/"/g,'&quot;')}" title="Hapus produk" style="background:none;border:none;color:#c0392b;cursor:pointer;font-size:1.1rem;">🗑️</button>
       </td>
