@@ -77,16 +77,44 @@
   .cat-pills{display:flex; gap:8px; overflow-x:auto; padding-bottom:4px; margin-bottom:16px;}
   .cat-pill{padding:9px 16px; border-radius:20px; border:1.5px solid var(--paper-line); background:#fff; font-size:.83rem; font-weight:600; color:var(--muted); white-space:nowrap; flex:0 0 auto; transition:all .15s;}
   .cat-pill.active{background:var(--ink); color:#fff; border-color:var(--ink);}
-  .product-grid{display:grid; grid-template-columns:repeat(auto-fill,minmax(150px,1fr)); gap:13px;}
-  .product-card{background:#fff; border:1px solid var(--paper-line); border-radius:var(--radius); padding:14px; text-align:left; transition:border-color .12s, transform .1s, box-shadow .15s; position:relative; box-shadow:var(--shadow-sm);}
-  .product-card:active{transform:scale(.98);}
-  .product-card.in-cart{border-color:var(--teal); box-shadow:0 0 0 1px var(--teal);}
-  .product-thumb{width:100%; aspect-ratio:1.3; border-radius:var(--radius-sm); background:linear-gradient(135deg,#F3ECDF,#E7DFD0); display:flex; align-items:center; justify-content:center; font-size:1.6rem; margin-bottom:10px; overflow:hidden;}
-  .product-thumb img{width:100%; height:100%; object-fit:cover;}
-  .product-name{font-weight:700; font-size:.88rem; margin-bottom:3px; line-height:1.25;}
-  .product-price{font-family:var(--font-m); font-weight:600; color:var(--amber-dark); font-size:.85rem;}
-  .product-stock{font-size:.7rem; color:var(--muted); margin-top:3px;}
-  .qty-badge{position:absolute; top:-8px; right:-8px; background:var(--teal); color:#fff; font-family:var(--font-m); font-weight:700; font-size:.75rem; width:24px; height:24px; border-radius:50%; display:flex; align-items:center; justify-content:center; box-shadow:0 2px 6px rgba(0,0,0,.2);}
+
+  /* ---------- PRODUCT LIST (a la gambar 1) ---------- */
+  .product-grid{display:flex; flex-direction:column;}
+  .list-section-title{font-family:var(--font-h); font-weight:600; font-size:.98rem; color:var(--charcoal); margin:22px 2px 8px;}
+  .list-section-title:first-child{margin-top:4px;}
+  .product-row{display:flex; gap:14px; padding:14px 2px; border-bottom:1px solid var(--paper-line); align-items:flex-start;}
+  .product-row:last-child{border-bottom:none;}
+  .pr-thumb{width:92px; height:92px; flex:0 0 92px; border-radius:var(--radius-sm); background:linear-gradient(135deg,#F3ECDF,#E7DFD0); display:flex; align-items:center; justify-content:center; font-size:1.5rem; overflow:hidden; position:relative; cursor:pointer;}
+  .pr-thumb img{width:100%; height:100%; object-fit:cover;}
+  .pr-body{flex:1; min-width:0; display:flex; flex-direction:column; gap:5px; cursor:pointer;}
+  .pr-name{font-weight:700; font-size:.9rem; line-height:1.3; color:var(--charcoal);}
+  .pr-price{font-family:var(--font-m); font-weight:600; color:var(--amber-dark); font-size:.85rem;}
+  .pr-stock{font-size:.7rem; color:var(--red);}
+  .pr-add-btn{align-self:flex-start; margin-top:3px; background:var(--teal); color:#fff; border:none; padding:8px 26px; border-radius:10px; font-weight:700; font-size:.82rem; cursor:pointer; transition:filter .15s, transform .1s;}
+  .pr-add-btn:active{transform:scale(.96);}
+  .pr-add-btn:disabled{opacity:.4; cursor:not-allowed;}
+  .qty-badge, .pr-qty-badge{position:absolute; top:-7px; right:-7px; background:var(--teal); color:#fff; font-family:var(--font-m); font-weight:700; font-size:.72rem; width:22px; height:22px; border-radius:50%; display:flex; align-items:center; justify-content:center; box-shadow:0 2px 6px rgba(0,0,0,.25);}
+
+  /* ---------- PRODUCT DETAIL VIEW (a la gambar 2) ---------- */
+  .detail-view{position:fixed; inset:0; z-index:150; background:var(--paper); display:none; flex-direction:column; overflow-y:auto;}
+  .detail-view.show{display:flex;}
+  .detail-hero{width:100%; aspect-ratio:1.35; flex:0 0 auto; background:linear-gradient(135deg,#F3ECDF,#E7DFD0); position:relative;}
+  .detail-hero-img{width:100%; height:100%; display:flex; align-items:center; justify-content:center; font-size:3.2rem;}
+  .detail-hero-img img{width:100%; height:100%; object-fit:cover;}
+  .detail-back{position:absolute; top:16px; left:16px; width:38px; height:38px; border-radius:50%; background:rgba(255,255,255,.94); border:none; display:flex; align-items:center; justify-content:center; font-size:1.15rem; box-shadow:var(--shadow-sm); color:var(--charcoal); z-index:2;}
+  .detail-body{max-width:560px; width:100%; margin:0 auto; padding:22px 20px 120px; flex:1;}
+  .detail-name{font-family:var(--font-h); font-size:1.25rem; font-weight:600; margin:0 0 8px; color:var(--charcoal);}
+  .detail-price{font-family:var(--font-m); font-weight:700; color:var(--amber-dark); font-size:1.02rem;}
+  .detail-divider{height:1px; background:repeating-linear-gradient(to right, var(--paper-line) 0 6px, transparent 6px 11px); margin:18px 0;}
+  .detail-note-head{display:flex; justify-content:space-between; align-items:center; margin-bottom:9px;}
+  .detail-note-head label{font-size:.76rem; font-weight:700; color:var(--muted); text-transform:uppercase; letter-spacing:.5px;}
+  .detail-note-count{font-size:.72rem; color:var(--muted); font-family:var(--font-m);}
+  .detail-note-input{width:100%; padding:14px 16px; border:none; border-radius:var(--radius-sm); font-size:.85rem; background:var(--ink); color:#fff; outline:none;}
+  .detail-note-input::placeholder{color:#8B8175;}
+  .detail-qty-row{display:flex; gap:10px; margin-top:4px;}
+  .detail-qty-row .dq-btn{width:56px; height:50px; border-radius:12px; border:1.5px solid var(--teal); background:#fff; color:var(--teal); font-weight:700; font-size:1.25rem; cursor:pointer;}
+  .detail-qty-row .dq-val{flex:1; height:50px; border-radius:12px; background:var(--ink); color:#fff; display:flex; align-items:center; justify-content:center; font-family:var(--font-m); font-weight:700; font-size:1.05rem;}
+  .detail-footer{position:fixed; left:0; right:0; bottom:0; padding:14px 20px calc(14px + env(safe-area-inset-bottom)); background:#fff; border-top:1px solid var(--paper-line); z-index:151; max-width:600px; margin:0 auto;}
 
   .empty-state{text-align:center; padding:60px 20px; color:var(--muted);}
   .empty-state .big{font-size:2rem; margin-bottom:8px;}
@@ -109,11 +137,17 @@
   .close-x{position:absolute; top:18px; right:18px; background:none; border:none; font-size:1.2rem; color:var(--muted); width:30px; height:30px; border-radius:50%; transition:background .15s;}
   .close-x:hover{background:var(--paper);}
 
+  .bill-header{display:flex; justify-content:space-between; align-items:flex-start; padding-bottom:14px; margin-bottom:8px; border-bottom:1px dashed var(--paper-line);}
+  .bill-table{font-family:var(--font-h); font-weight:600; font-size:1.05rem; color:var(--charcoal);}
+  .bill-customer{font-size:.82rem; color:var(--muted); margin-top:2px;}
+  .summary-title{font-size:.74rem; font-weight:700; text-transform:uppercase; letter-spacing:.6px; color:var(--muted); margin:16px 0 8px;}
+
   .cart-items{margin-bottom:6px;}
   .cart-item{display:flex; gap:10px; padding:11px 0; border-bottom:1px solid var(--paper-line); align-items:center;}
   .cart-item:last-child{border-bottom:none;}
   .ci-info{flex:1; min-width:0;}
   .ci-name{font-weight:700; font-size:.86rem;}
+  .ci-note{font-size:.72rem; color:var(--muted); font-style:italic; margin:2px 0;}
   .ci-price{font-family:var(--font-m); font-size:.76rem; color:var(--muted);}
   .ci-qty{display:flex; align-items:center; gap:6px;}
   .qty-btn{width:27px; height:27px; border-radius:8px; border:1.5px solid var(--paper-line); background:var(--paper); font-weight:700; font-size:.9rem; line-height:1; transition:border-color .15s;}
@@ -162,12 +196,85 @@
 
   .toast-wrap{position:fixed; top:20px; left:16px; right:16px; z-index:200; display:flex; flex-direction:column; gap:10px; align-items:center;}
   .toast{background:var(--ink); color:#fff; padding:14px 19px; border-radius:var(--radius-sm); font-size:.85rem; box-shadow:var(--shadow-lg); border-left:3px solid var(--amber); max-width:400px;}
+
+  /* ---------- IDENTITY GATE ---------- */
+  .identity-gate{
+    position:fixed; inset:0; z-index:500; display:flex; align-items:center; justify-content:center;
+    padding:20px; overflow-y:auto;
+    background:
+      radial-gradient(650px 420px at 18% 8%, rgba(63,107,76,.35), transparent 60%),
+      radial-gradient(600px 500px at 88% 92%, rgba(193,68,14,.28), transparent 55%),
+      var(--ink);
+  }
+  .identity-gate.hide{display:none;}
+  .identity-card{
+    background:#fff; width:100%; max-width:400px; border-radius:var(--radius-lg);
+    padding:32px 26px 24px; box-shadow:var(--shadow-lg); max-height:92vh; overflow-y:auto; margin:auto;
+  }
+  .ig-brand{display:flex; align-items:center; gap:13px; margin-bottom:20px;}
+  .ig-logo{
+    width:54px; height:54px; border-radius:15px; background:linear-gradient(135deg,var(--amber),var(--amber-dark));
+    display:flex; align-items:center; justify-content:center; font-size:1.6rem; flex:0 0 auto; box-shadow:var(--shadow-sm);
+  }
+  .ig-store-name{font-family:var(--font-h); font-weight:600; font-size:1.12rem; color:var(--ink); line-height:1.25;}
+  .ig-store-sub{font-size:.75rem; color:var(--muted); margin-top:2px;}
+  .ig-table-row{
+    display:flex; align-items:center; justify-content:space-between; background:var(--paper);
+    border-radius:var(--radius-sm); padding:11px 14px; margin:0 0 18px; font-weight:700; font-size:.92rem;
+  }
+  .ig-table-code{font-family:var(--font-m); font-size:.74rem; color:var(--muted); font-weight:500;}
+  .ig-guest-check{display:flex; align-items:center; gap:10px; font-size:.85rem; color:var(--muted); margin:2px 0 18px; cursor:pointer;}
+  .ig-guest-check input{width:18px; height:18px; accent-color:var(--teal); flex:0 0 auto;}
+  .ig-guest-check strong{color:var(--charcoal);}
+  .ig-powered{text-align:center; font-size:.72rem; color:var(--muted); margin-top:14px;}
+  .ig-powered strong{color:var(--charcoal);}
+  .customer-pill{
+    display:none; align-items:center; gap:6px; background:rgba(255,255,255,.12); color:#fff;
+    padding:5px 12px; border-radius:20px; font-size:.72rem; font-weight:600; border:none; cursor:pointer;
+    max-width:130px; flex:0 1 auto; min-width:0;
+  }
+  .customer-pill:hover{background:rgba(255,255,255,.2);}
+  #customer-pill-label{overflow:hidden; text-overflow:ellipsis; white-space:nowrap; display:block;}
+
+  @media(max-width:420px){
+    header.topbar{padding:14px 12px; gap:8px;}
+    .brand .sub{display:none;}
+    .brand{font-size:1.02rem; gap:6px;}
+    nav.tabs button{padding:8px 10px; font-size:.76rem;}
+    .customer-pill{max-width:92px; padding:5px 9px; font-size:.68rem;}
+  }
 </style>
 </head>
 <body>
 
+<!-- ================= IDENTITY GATE ================= -->
+<div class="identity-gate" id="identity-gate">
+  <div class="identity-card">
+    <div class="ig-brand">
+      <div class="ig-logo">🍽️</div>
+      <div>
+        <div class="ig-store-name" id="ig-store-name">Kasirku</div>
+        <div class="ig-store-sub">Menu &amp; pesan online</div>
+      </div>
+    </div>
+    <div class="ig-table-row" id="ig-table-row" style="display:none;">
+      <span id="ig-table-label">Meja</span>
+      <span class="ig-table-code" id="ig-table-code"></span>
+    </div>
+    <div class="error-msg" id="ig-error"></div>
+    <div class="field"><label>No. HP / WhatsApp</label><input type="tel" id="ig-phone" placeholder="08xxxxxxxxxx"></div>
+    <div class="field" style="margin-bottom:6px;"><label>Nama Pemesan</label><input type="text" id="ig-name" placeholder="Nama kamu"></div>
+    <label class="ig-guest-check"><input type="checkbox" id="ig-guest"> Lanjutkan sebagai <strong>tamu</strong></label>
+    <button class="btn btn-primary btn-block" id="ig-next-btn">Lanjut</button>
+    <div class="ig-powered">Powered by <strong>Kasirku</strong></div>
+  </div>
+</div>
+
 <header class="topbar">
-  <div class="brand"><span class="dot"></span><span><span style="display:block;">Kasirku</span><span class="sub" style="display:block;">Menu &amp; pesan online</span></span></div>
+  <div style="display:flex; align-items:center; gap:10px; min-width:0;">
+    <div class="brand"><span class="dot"></span><span><span style="display:block;">Kasirku</span><span class="sub" style="display:block;">Menu &amp; pesan online</span></span></div>
+    <button class="customer-pill" id="customer-pill-wrap"><span id="customer-pill-label"></span></button>
+  </div>
   <nav class="tabs">
     <button data-view="menu" class="active">Menu</button>
     <button data-view="track">Lacak Pesanan</button>
@@ -199,23 +306,55 @@
 <!-- ================= CART BAR ================= -->
 <div class="cart-bar" id="cart-bar">
   <button id="open-cart-btn">
-    <span class="cb-left"><span class="cb-count" id="cb-count">0</span> Lihat Keranjang</span>
+    <span class="cb-left"><span class="cb-count" id="cb-count">0</span> My Bill</span>
     <span class="cb-total" id="cb-total">Rp 0</span>
   </button>
 </div>
 
-<!-- ================= CART SHEET ================= -->
+<!-- ================= CART SHEET (My Bill) ================= -->
 <div class="sheet-backdrop" id="cart-sheet">
   <div class="sheet">
     <button class="close-x" onclick="closeSheet('cart-sheet')">✕</button>
-    <h2>Keranjang</h2>
-    <p class="sub">Periksa pesanan sebelum lanjut ke data pemesan.</p>
+    <div class="bill-header">
+      <div>
+        <div class="bill-table" id="bill-table-label">Keranjang Saya</div>
+        <div class="bill-customer" id="bill-customer-label"></div>
+      </div>
+    </div>
     <div class="cart-items" id="cart-items"></div>
     <div class="tear"></div>
-    <div class="totals-line"><span>Total Qty Item</span><span id="sum-qty">0</span></div>
+    <div class="summary-title">Summary</div>
+    <div class="totals-line"><span>Total Item</span><span id="sum-qty">0</span></div>
     <div class="totals-line"><span>Subtotal</span><span id="sum-subtotal">Rp 0</span></div>
     <div class="total-display" id="sum-total">Rp 0</div>
     <button class="btn btn-primary btn-block" id="to-checkout-btn">Lanjut ke Data Pemesan</button>
+  </div>
+</div>
+
+<!-- ================= PRODUCT DETAIL VIEW ================= -->
+<div class="detail-view" id="detail-view">
+  <div class="detail-hero">
+    <button class="detail-back" onclick="closeProductDetail()">←</button>
+    <div class="detail-hero-img" id="detail-img-wrap">🍽️</div>
+  </div>
+  <div class="detail-body">
+    <h2 class="detail-name" id="detail-name"></h2>
+    <div class="detail-price" id="detail-price"></div>
+    <div class="detail-divider"></div>
+    <div class="detail-note-head">
+      <label>Catatan</label>
+      <span class="detail-note-count" id="detail-note-count">0/20</span>
+    </div>
+    <input type="text" class="detail-note-input" id="detail-note" maxlength="20" placeholder="Contoh : tidak pedas">
+    <div class="detail-divider"></div>
+    <div class="detail-qty-row">
+      <button class="dq-btn" type="button" onclick="changeDetailQty(-1)">−</button>
+      <div class="dq-val" id="detail-qty-val">1</div>
+      <button class="dq-btn" type="button" onclick="changeDetailQty(1)">+</button>
+    </div>
+  </div>
+  <div class="detail-footer">
+    <button class="btn btn-primary btn-block" id="detail-add-btn">Tambah ke Keranjang</button>
   </div>
 </div>
 
@@ -365,7 +504,13 @@ async function loadCategories(){
 
 async function loadStoreSettings(){
   const { data, error } = await sb.from('store_settings').select('*').eq('id', true).single();
-  if(!error) storeSettings = data;
+  if(!error){
+    storeSettings = data;
+    if(storeSettings?.qris_merchant_name){
+      const nameEl = document.getElementById('ig-store-name');
+      if(nameEl) nameEl.textContent = storeSettings.qris_merchant_name;
+    }
+  }
 }
 
 async function loadProducts(){
@@ -380,19 +525,93 @@ function renderProducts(){
   let list = products;
   if(activeCategory !== 'all') list = list.filter(p=>p.category_id === activeCategory);
   if(searchTerm) list = list.filter(p=> p.name.toLowerCase().includes(searchTerm) || (p.sku||'').toLowerCase().includes(searchTerm));
-  if(list.length===0){ grid.innerHTML = '<div class="empty-state" style="grid-column:1/-1"><div class="big">🗂️</div>Menu tidak ditemukan.</div>'; return; }
-  grid.innerHTML = list.map(p=>{
-    const inCart = cart.find(c=>c.product_id===p.id);
-    return `
-    <button class="product-card ${inCart?'in-cart':''}" ${p.stock<=0?'disabled':''} onclick="addToCart('${p.id}')">
-      ${inCart? `<span class="qty-badge">${inCart.qty}</span>` : ''}
-      <div class="product-thumb">${p.image_url ? `<img src="${p.image_url}" alt="">` : '🍽️'}</div>
-      <div class="product-name">${p.name}</div>
-      <div class="product-price">${rupiah(p.price)}</div>
-      <div class="product-stock">${p.stock<=0 ? 'Stok habis' : 'Stok: '+p.stock}</div>
-    </button>
-  `}).join('');
+  if(list.length===0){ grid.innerHTML = '<div class="empty-state"><div class="big">🗂️</div>Menu tidak ditemukan.</div>'; return; }
+
+  // Kelompokkan per kategori supaya tampil seperti judul section di gambar 1
+  const groups = {};
+  const order = [];
+  list.forEach(p=>{
+    const catName = p.categories?.name || 'Lainnya';
+    if(!groups[catName]){ groups[catName] = []; order.push(catName); }
+    groups[catName].push(p);
+  });
+
+  grid.innerHTML = order.map(catName => `
+    <div class="list-section-title">${catName}</div>
+    ${groups[catName].map(p=>{
+      const inCartQty = cart.filter(c=>c.product_id===p.id).reduce((s,c)=>s+c.qty,0);
+      const clickable = p.stock > 0 ? `onclick="openProductDetail('${p.id}')"` : '';
+      return `
+      <div class="product-row">
+        <div class="pr-thumb" ${clickable}>
+          ${inCartQty ? `<span class="pr-qty-badge">${inCartQty}</span>` : ''}
+          ${p.image_url ? `<img src="${p.image_url}" alt="">` : '🍽️'}
+        </div>
+        <div class="pr-body" ${clickable}>
+          <div class="pr-name">${p.name}</div>
+          <div class="pr-price">${rupiah(p.price)}</div>
+          ${p.stock<=0 ? '<div class="pr-stock">Stok habis</div>' : ''}
+          <button type="button" class="pr-add-btn" ${p.stock<=0?'disabled':''} onclick="event.stopPropagation(); openProductDetail('${p.id}')">Add</button>
+        </div>
+      </div>`;
+    }).join('')}
+  `).join('');
 }
+
+/* ============ PRODUCT DETAIL (gambar 2) ============ */
+let detailProduct = null;
+let detailQty = 1;
+
+function openProductDetail(productId){
+  const p = products.find(x=>x.id===productId);
+  if(!p || p.stock<=0) return;
+  detailProduct = p;
+  detailQty = 1;
+  document.getElementById('detail-img-wrap').innerHTML = p.image_url ? `<img src="${p.image_url}" alt="">` : '🍽️';
+  document.getElementById('detail-name').textContent = p.name;
+  document.getElementById('detail-price').textContent = rupiah(p.price);
+  const noteInput = document.getElementById('detail-note');
+  noteInput.value = '';
+  updateNoteCount();
+  document.getElementById('detail-qty-val').textContent = detailQty;
+  document.getElementById('detail-view').classList.add('show');
+  document.body.style.overflow = 'hidden';
+}
+function closeProductDetail(){
+  document.getElementById('detail-view').classList.remove('show');
+  document.body.style.overflow = '';
+  detailProduct = null;
+}
+function changeDetailQty(delta){
+  if(!detailProduct) return;
+  const newQty = detailQty + delta;
+  if(newQty < 1) return;
+  if(newQty > detailProduct.stock){ toast('Stok tidak mencukupi.'); return; }
+  detailQty = newQty;
+  document.getElementById('detail-qty-val').textContent = detailQty;
+}
+function updateNoteCount(){
+  const val = document.getElementById('detail-note').value;
+  document.getElementById('detail-note-count').textContent = val.length + '/20';
+}
+document.getElementById('detail-note').addEventListener('input', updateNoteCount);
+document.getElementById('detail-add-btn').addEventListener('click', ()=>{
+  if(!detailProduct) return;
+  const note = document.getElementById('detail-note').value.trim();
+  const existing = cart.find(c=>c.product_id===detailProduct.id && (c.note||'')===note);
+  const currentQtyForProduct = cart.filter(c=>c.product_id===detailProduct.id).reduce((s,c)=>s+c.qty,0);
+  if(currentQtyForProduct + detailQty > detailProduct.stock){ toast('Stok tidak mencukupi.'); return; }
+  if(existing){
+    existing.qty += detailQty;
+  } else {
+    cart.push({ product_id:detailProduct.id, name:detailProduct.name, price:Number(detailProduct.price), qty:detailQty, stock:detailProduct.stock, note });
+  }
+  renderProducts();
+  renderCart();
+  updateCartBar();
+  closeProductDetail();
+  toast('Ditambahkan ke keranjang.');
+});
 
 document.getElementById('product-search').addEventListener('input', (e)=>{
   searchTerm = e.target.value.trim().toLowerCase();
@@ -400,20 +619,6 @@ document.getElementById('product-search').addEventListener('input', (e)=>{
 });
 
 /* ============ CART ============ */
-function addToCart(productId){
-  const p = products.find(x=>x.id===productId);
-  if(!p || p.stock<=0) return;
-  const existing = cart.find(c=>c.product_id===productId);
-  if(existing){
-    if(existing.qty < p.stock) existing.qty++;
-    else { toast('Stok tidak mencukupi.'); return; }
-  } else {
-    cart.push({ product_id:p.id, name:p.name, price:Number(p.price), qty:1, stock:p.stock });
-  }
-  renderProducts();
-  renderCart();
-  updateCartBar();
-}
 function changeQty(idx, delta){
   const item = cart[idx];
   const p = products.find(x=>x.id===item.product_id);
@@ -448,7 +653,8 @@ function renderCart(){
     wrap.innerHTML = cart.map((c,i)=>`
       <div class="cart-item">
         <div class="ci-info">
-          <div class="ci-name">${c.name}</div>
+          <div class="ci-name">${c.qty} ${c.name}</div>
+          ${c.note ? `<div class="ci-note">"${c.note}"</div>` : ''}
           <div class="ci-price">${rupiah(c.price)} × ${c.qty}</div>
         </div>
         <div class="ci-qty">
@@ -466,7 +672,15 @@ function renderCart(){
   document.getElementById('sum-total').textContent = rupiah(total);
 }
 
-document.getElementById('open-cart-btn').addEventListener('click', ()=>{ renderCart(); openSheet('cart-sheet'); });
+document.getElementById('open-cart-btn').addEventListener('click', ()=>{
+  renderCart();
+  const table = getTableFromUrl();
+  document.getElementById('bill-table-label').textContent = table ? ('Meja ' + table) : 'Keranjang Saya';
+  document.getElementById('bill-customer-label').textContent = customerIdentity && !customerIdentity.guest
+    ? (customerIdentity.name || customerIdentity.phone || '')
+    : (customerIdentity && customerIdentity.guest ? 'Tamu' : '');
+  openSheet('cart-sheet');
+});
 document.getElementById('to-checkout-btn').addEventListener('click', ()=>{
   if(cart.length===0){ toast('Keranjang masih kosong.'); return; }
   closeSheet('cart-sheet');
@@ -700,6 +914,78 @@ async function doTrack(){
     btn.disabled = false; btn.textContent = 'Cek Status';
   }
 }
+
+/* ============ IDENTITY GATE ============ */
+let customerIdentity = null; // {name, phone, guest}
+const CUSTOMER_STORAGE_KEY = 'kasirku_customer_identity';
+
+function getTableFromUrl(){
+  const params = new URLSearchParams(window.location.search);
+  return params.get('meja') || params.get('table') || null;
+}
+
+function openGate(){
+  document.getElementById('identity-gate').classList.remove('hide');
+  document.body.style.overflow = 'hidden';
+}
+function closeGate(){
+  document.getElementById('identity-gate').classList.add('hide');
+  document.body.style.overflow = '';
+}
+
+function applyCustomerIdentity(identity, persist){
+  customerIdentity = identity;
+  document.getElementById('co-name').value = identity.name || '';
+  document.getElementById('co-phone').value = identity.phone || '';
+  const pillWrap = document.getElementById('customer-pill-wrap');
+  if(identity.name || identity.phone){
+    pillWrap.style.display = 'inline-flex';
+    document.getElementById('customer-pill-label').textContent = identity.guest
+      ? 'Tamu · Ganti'
+      : `Halo, ${identity.name || identity.phone} · Ganti`;
+  } else {
+    pillWrap.style.display = 'none';
+  }
+  if(persist){
+    try{ localStorage.setItem(CUSTOMER_STORAGE_KEY, JSON.stringify(identity)); }catch(e){}
+  }
+  closeGate();
+}
+
+document.getElementById('ig-next-btn').addEventListener('click', ()=>{
+  const errEl = document.getElementById('ig-error');
+  errEl.style.display = 'none';
+  const name = document.getElementById('ig-name').value.trim();
+  const phone = document.getElementById('ig-phone').value.trim();
+  const guest = document.getElementById('ig-guest').checked;
+  if(!guest && (!name || !phone)){
+    errEl.textContent = 'Isi No. HP dan Nama, atau centang lanjutkan sebagai tamu.';
+    errEl.style.display = 'block';
+    return;
+  }
+  applyCustomerIdentity({ name, phone, guest }, true);
+});
+
+document.getElementById('customer-pill-wrap').addEventListener('click', ()=>{
+  document.getElementById('ig-name').value = customerIdentity?.name || '';
+  document.getElementById('ig-phone').value = customerIdentity?.phone || '';
+  document.getElementById('ig-guest').checked = !!customerIdentity?.guest;
+  document.getElementById('ig-error').style.display = 'none';
+  openGate();
+});
+
+(function initIdentityGate(){
+  const table = getTableFromUrl();
+  if(table){
+    document.getElementById('ig-table-row').style.display = 'flex';
+    document.getElementById('ig-table-label').textContent = 'Meja ' + table;
+  }
+  let saved = null;
+  try{ saved = JSON.parse(localStorage.getItem(CUSTOMER_STORAGE_KEY) || 'null'); }catch(e){}
+  if(saved){
+    applyCustomerIdentity(saved, false);
+  }
+})();
 
 /* ============ INIT ============ */
 (async function init(){
