@@ -335,11 +335,10 @@
     <form id="login-form">
       <div class="field"><label>Email</label><input type="email" id="login-email" required placeholder="nama@toko.com"></div>
       <div class="field"><label>Kata Sandi</label><input type="password" id="login-password" required placeholder="••••••••"></div>
-      <div class="field" id="register-name-field" style="display:none;"><label>Nama Lengkap</label><input type="text" id="register-name" placeholder="Nama staf"></div>
       <button type="submit" class="btn btn-primary btn-block" id="auth-submit-btn">Masuk</button>
     </form>
     <div class="login-toggle">
-      <span id="toggle-to-register">Belum punya akun? <a onclick="toggleAuthMode()">Daftar</a></span>
+      <span>Belum punya akun? Hubungi admin toko untuk dibuatkan akun.</span>
     </div>
   </div>
 </div>
@@ -357,6 +356,8 @@
         <button class="side-link" data-view="orders"><span class="ic">🧾</span> Riwayat Pesanan</button>
         <div class="side-group-label" id="side-group-produk">Produk</div>
         <button class="side-link" data-view="products" id="tab-products"><span class="ic">📦</span> Kelola Produk</button>
+        <div class="side-group-label" id="side-group-tim">Tim</div>
+        <button class="side-link" data-view="staff" id="tab-staff"><span class="ic">👥</span> Kelola Staf</button>
       </nav>
       <div class="sidebar-footer">Kasirku POS</div>
     </aside>
@@ -495,6 +496,19 @@
         <button class="btn btn-primary" id="save-qris-btn">Simpan Pengaturan</button>
       </div>
     </section>
+
+    <!-- ---- STAFF ADMIN VIEW ---- -->
+    <section class="view" id="view-staff">
+      <div class="prod-admin-head">
+        <h2 style="margin:0;font-size:1.3rem;font-weight:600;font-family:var(--font-h);">Kelola Staf</h2>
+        <button class="btn btn-primary" id="add-staff-btn">+ Tambah Staf</button>
+      </div>
+      <p style="color:var(--muted); font-size:.83rem; margin:-10px 0 18px;">Hanya admin yang bisa membuat akun staf baru. Tidak ada pendaftaran mandiri.</p>
+      <table class="admin-table">
+        <thead><tr><th>Nama</th><th>Email</th><th>Role</th><th>Bergabung</th></tr></thead>
+        <tbody id="staff-table-body"></tbody>
+      </table>
+    </section>
       </main>
     </div>
   </div>
@@ -568,6 +582,31 @@
   </div>
 </div>
 
+<!-- ================= ADD STAFF MODAL (admin) ================= -->
+<div class="modal-backdrop" id="staff-modal">
+  <div class="modal">
+    <button class="close-x" onclick="closeModal('staff-modal')">✕</button>
+    <h2>Tambah Akun Staf</h2>
+    <p class="sub">Hanya admin yang bisa membuat akun. Staf tidak bisa mendaftar sendiri.</p>
+    <div class="error-msg" id="staff-error"></div>
+    <div class="field"><label>Nama Lengkap</label><input type="text" id="ns-name" placeholder="Nama staf"></div>
+    <div class="field"><label>Email</label><input type="email" id="ns-email" placeholder="staf@toko.com"></div>
+    <div class="field"><label>Kata Sandi Awal</label><input type="password" id="ns-password" placeholder="Minimal 6 karakter"></div>
+    <div class="field">
+      <label>Role</label>
+      <select id="ns-role">
+        <option value="cashier">Kasir</option>
+        <option value="kitchen">Dapur</option>
+        <option value="admin">Admin</option>
+      </select>
+    </div>
+    <div class="modal-actions">
+      <button class="btn btn-ghost" onclick="closeModal('staff-modal')">Batal</button>
+      <button class="btn btn-primary" id="save-staff-btn">Buat Akun</button>
+    </div>
+  </div>
+</div>
+
 <div class="toast-wrap" id="toast-wrap"></div>
 
 <script>
@@ -587,7 +626,6 @@ let searchTerm = '';
 let orderType = 'in_store';
 let selectedPayMethod = 'cash';
 let cashInput = '';
-let isRegisterMode = false;
 
 /* ============ HELPERS ============ */
 function rupiah(n){ return 'Rp ' + Math.round(n).toLocaleString('id-ID'); }
@@ -611,18 +649,6 @@ function beep(){
 }
 
 /* ============ AUTH ============ */
-function toggleAuthMode(){
-  isRegisterMode = !isRegisterMode;
-  document.getElementById('auth-title').textContent = isRegisterMode ? 'Daftar Akun' : 'Masuk Kasir';
-  document.getElementById('auth-sub').textContent = isRegisterMode ? 'Buat akun staf baru (role default: kasir).' : 'Masuk untuk mulai melayani transaksi.';
-  document.getElementById('register-name-field').style.display = isRegisterMode ? 'block' : 'none';
-  document.getElementById('auth-submit-btn').textContent = isRegisterMode ? 'Daftar' : 'Masuk';
-  document.getElementById('toggle-to-register').innerHTML = isRegisterMode
-    ? 'Sudah punya akun? <a onclick="toggleAuthMode()">Masuk</a>'
-    : 'Belum punya akun? <a onclick="toggleAuthMode()">Daftar</a>';
-  document.getElementById('auth-error').style.display = 'none';
-}
-
 document.getElementById('login-form').addEventListener('submit', async (e)=>{
   e.preventDefault();
   const email = document.getElementById('login-email').value.trim();
@@ -630,21 +656,9 @@ document.getElementById('login-form').addEventListener('submit', async (e)=>{
   const errEl = document.getElementById('auth-error');
   errEl.style.display = 'none';
   try{
-    if(isRegisterMode){
-      const name = document.getElementById('register-name').value.trim() || email.split('@')[0];
-      const { data, error } = await sb.auth.signUp({ email, password });
-      if(error) throw error;
-      if(data.user){
-        const { error: profErr } = await sb.from('profiles').insert({ id: data.user.id, name, email, role: 'cashier' });
-        if(profErr) throw new Error('Gagal membuat profil: ' + profErr.message);
-        toast('Akun dibuat. Silakan masuk.');
-        toggleAuthMode();
-      }
-    } else {
-      const { data, error } = await sb.auth.signInWithPassword({ email, password });
-      if(error) throw error;
-      await afterLogin(data.user);
-    }
+    const { data, error } = await sb.auth.signInWithPassword({ email, password });
+    if(error) throw error;
+    await afterLogin(data.user);
   }catch(err){
     errEl.textContent = err.message || 'Terjadi kesalahan.';
     errEl.style.display = 'block';
@@ -687,7 +701,12 @@ async function afterLogin(user){
 function applyRoleVisibility(){
   const tabProducts = document.getElementById('tab-products');
   const groupProduk = document.getElementById('side-group-produk');
-  if(profile.role !== 'admin'){ tabProducts.style.display = 'none'; groupProduk.style.display = 'none'; }
+  const tabStaff = document.getElementById('tab-staff');
+  const groupTim = document.getElementById('side-group-tim');
+  if(profile.role !== 'admin'){
+    tabProducts.style.display = 'none'; groupProduk.style.display = 'none';
+    tabStaff.style.display = 'none'; groupTim.style.display = 'none';
+  }
   if(profile.role === 'kitchen'){
     document.querySelector('[data-view="pos"]').style.display = 'none';
     switchView('orders');
@@ -715,7 +734,7 @@ function closeSidebar(){
   document.getElementById('sidebar').classList.remove('open');
   document.getElementById('sidebar-backdrop').classList.remove('show');
 }
-const pageTitles = { dashboard:'Dashboard', pos:'Kasir', orders:'Riwayat Pesanan', products:'Kelola Produk' };
+const pageTitles = { dashboard:'Dashboard', pos:'Kasir', orders:'Riwayat Pesanan', products:'Kelola Produk', staff:'Kelola Staf' };
 function switchView(name){
   document.querySelectorAll('.side-link').forEach(b=>b.classList.toggle('active', b.dataset.view===name));
   document.querySelectorAll('.view').forEach(v=>v.classList.remove('active'));
@@ -724,7 +743,73 @@ function switchView(name){
   if(name==='dashboard') loadDashboard();
   if(name==='orders') loadOrders();
   if(name==='products'){ loadProducts(true); loadQrisSettings(); }
+  if(name==='staff') loadStaff();
 }
+
+/* ============ STAFF (ADMIN) ============ */
+const roleLabel = { admin:'Admin', cashier:'Kasir', kitchen:'Dapur' };
+async function loadStaff(){
+  const body = document.getElementById('staff-table-body');
+  body.innerHTML = '<tr><td colspan="4" style="color:var(--muted);padding:14px 8px;">Memuat...</td></tr>';
+  const { data, error } = await sb.from('profiles').select('*').order('created_at', { ascending:true });
+  if(error){ body.innerHTML = `<tr><td colspan="4">Gagal memuat: ${error.message}</td></tr>`; return; }
+  if(!data || data.length===0){ body.innerHTML = '<tr><td colspan="4" style="color:var(--muted);padding:14px 8px;">Belum ada staf.</td></tr>'; return; }
+  body.innerHTML = data.map(p=>`
+    <tr>
+      <td>${p.name || '-'}</td>
+      <td>${p.email || '-'}</td>
+      <td><span class="role-badge">${roleLabel[p.role] || p.role}</span></td>
+      <td>${p.created_at ? new Date(p.created_at).toLocaleDateString('id-ID') : '-'}</td>
+    </tr>
+  `).join('');
+}
+document.getElementById('add-staff-btn').addEventListener('click', ()=>{
+  ['ns-name','ns-email','ns-password'].forEach(id=>document.getElementById(id).value='');
+  document.getElementById('ns-role').value = 'cashier';
+  document.getElementById('staff-error').style.display = 'none';
+  openModal('staff-modal');
+});
+document.getElementById('save-staff-btn').addEventListener('click', async ()=>{
+  const name = document.getElementById('ns-name').value.trim();
+  const email = document.getElementById('ns-email').value.trim();
+  const password = document.getElementById('ns-password').value;
+  const role = document.getElementById('ns-role').value;
+  const errEl = document.getElementById('staff-error');
+  errEl.style.display = 'none';
+  if(!name || !email || !password){ errEl.textContent = 'Nama, email, dan kata sandi wajib diisi.'; errEl.style.display = 'block'; return; }
+  if(password.length < 6){ errEl.textContent = 'Kata sandi minimal 6 karakter.'; errEl.style.display = 'block'; return; }
+  const btn = document.getElementById('save-staff-btn');
+  btn.disabled = true; btn.textContent = 'Membuat...';
+  try{
+    // Pembuatan akun staf dilakukan lewat Edge Function "create-staff" yang berjalan
+    // di server dengan service_role key (tidak pernah dikirim ke browser). Fungsi itu
+    // sendiri memverifikasi bahwa pemanggilnya benar-benar admin sebelum membuat akun,
+    // jadi proses ini tidak menyentuh sesi login admin yang sedang aktif sama sekali.
+    const { data: sessionData } = await sb.auth.getSession();
+    const accessToken = sessionData?.session?.access_token;
+    if(!accessToken) throw new Error('Sesi admin tidak ditemukan. Silakan masuk ulang.');
+    const res = await fetch(`${SUPABASE_URL}/functions/v1/create-staff`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${accessToken}`,
+        'apikey': SUPABASE_ANON_KEY
+      },
+      body: JSON.stringify({ name, email, password, role })
+    });
+    const result = await res.json();
+    if(!res.ok) throw new Error(result.error || 'Gagal membuat akun staf.');
+    toast(`Akun staf "${name}" berhasil dibuat.`);
+    closeModal('staff-modal');
+    await loadStaff();
+    await loadDashboard();
+  }catch(err){
+    errEl.textContent = err.message || 'Gagal membuat akun staf.';
+    errEl.style.display = 'block';
+  }finally{
+    btn.disabled = false; btn.textContent = 'Buat Akun';
+  }
+});
 
 /* ============ DASHBOARD ============ */
 async function loadDashboard(){
