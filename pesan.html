@@ -248,6 +248,15 @@
 </head>
 <body>
 
+<!-- ================= STORE NOT FOUND GATE ================= -->
+<div class="identity-gate" id="store-error-gate" style="display:none;">
+  <div class="identity-card" style="text-align:center;">
+    <div style="font-size:2.2rem; margin-bottom:10px;">🏬</div>
+    <h2 style="margin:0 0 8px;">Toko tidak ditemukan</h2>
+    <p class="sub" style="margin:0;">Link yang kamu buka sepertinya tidak valid atau sudah tidak aktif. Coba scan ulang QR/link dari toko yang bersangkutan.</p>
+  </div>
+</div>
+
 <!-- ================= IDENTITY GATE ================= -->
 <div class="identity-gate" id="identity-gate">
   <div class="identity-card">
@@ -463,6 +472,7 @@ let searchTerm = '';
 let orderType = 'pickup';
 let payMethod = 'qris';
 let storeSettings = null;
+let activeStore = null; // {id, name, slug, code_prefix}
 
 /* ============ HELPERS ============ */
 function rupiah(n){ return 'Rp ' + Math.round(n).toLocaleString('id-ID'); }
@@ -486,9 +496,34 @@ function switchView(name){
   document.getElementById('view-'+name).classList.add('active');
 }
 
+/* ============ RESOLVE TOKO AKTIF ============ */
+const STORE_STORAGE_KEY = 'kasirku_active_store';
+
+async function resolveActiveStore(){
+  const params = new URLSearchParams(window.location.search);
+  const slugFromUrl = params.get('store') || params.get('toko');
+
+  if(slugFromUrl){
+    const { data, error } = await sb.from('stores').select('*').eq('slug', slugFromUrl).eq('is_active', true).single();
+    if(!error && data){
+      activeStore = data;
+      try{ localStorage.setItem(STORE_STORAGE_KEY, JSON.stringify(data)); }catch(e){}
+      return true;
+    }
+    return false; // slug ada di URL tapi tidak ditemukan -> jangan diam-diam pakai toko lama
+  }
+
+  // Tidak ada ?store= di URL -> coba pakai toko terakhir yang tersimpan (kunjungan sebelumnya)
+  try{
+    const saved = JSON.parse(localStorage.getItem(STORE_STORAGE_KEY) || 'null');
+    if(saved && saved.id){ activeStore = saved; return true; }
+  }catch(e){}
+  return false;
+}
+
 /* ============ CATALOG (baca publik, tanpa login) ============ */
 async function loadCategories(){
-  const { data } = await sb.from('categories').select('*').order('name');
+  const { data } = await sb.from('categories').select('*').eq('store_id', activeStore.id).order('name');
   categories = data || [];
   const wrap = document.getElementById('category-pills');
   wrap.innerHTML = '<button class="cat-pill active" data-cat="all">Semua</button>' +
@@ -504,18 +539,16 @@ async function loadCategories(){
 }
 
 async function loadStoreSettings(){
-  const { data, error } = await sb.from('store_settings').select('*').eq('id', true).single();
+  const { data, error } = await sb.from('store_settings').select('*').eq('store_id', activeStore.id).single();
   if(!error){
     storeSettings = data;
-    if(storeSettings?.qris_merchant_name){
-      const nameEl = document.getElementById('ig-store-name');
-      if(nameEl) nameEl.textContent = storeSettings.qris_merchant_name;
-    }
   }
+  const nameEl = document.getElementById('ig-store-name');
+  if(nameEl) nameEl.textContent = storeSettings?.qris_merchant_name || activeStore.name;
 }
 
 async function loadProducts(){
-  const { data, error } = await sb.from('products').select('*, categories(name)').eq('is_active', true).order('name');
+  const { data, error } = await sb.from('products').select('*, categories(name)').eq('store_id', activeStore.id).eq('is_active', true).order('name');
   if(error){ toast('Gagal memuat menu: '+error.message); return; }
   products = data || [];
   renderProducts();
@@ -812,6 +845,7 @@ document.getElementById('submit-order-btn').addEventListener('click', async ()=>
     const itemsPayload = cart.map(c=>({ product_id: c.product_id, quantity: c.qty }));
 
     const { data: rpcData, error: orderErr } = await sb.rpc('create_guest_order', {
+      p_store_id: activeStore.id,
       p_order_number: orderNumber,
       p_order_type: orderType,
       p_customer_name: name,
@@ -873,7 +907,7 @@ async function doTrack(){
   const btn = document.getElementById('track-btn');
   btn.disabled = true; btn.textContent = 'Mencari...';
   try{
-    const { data: orderData, error: orderErr } = await sb.rpc('get_order_by_phone_code', { p_phone: phone, p_code: code });
+    const { data: orderData, error: orderErr } = await sb.rpc('get_order_by_phone_code', { p_store_id: activeStore.id, p_phone: phone, p_code: code });
     if(orderErr) throw orderErr;
     if(!orderData || orderData.length===0){
       errEl.textContent = 'Pesanan tidak ditemukan. Periksa kembali No. HP dan kode order.';
@@ -881,7 +915,7 @@ async function doTrack(){
       return;
     }
     const o = orderData[0];
-    const { data: itemsData } = await sb.rpc('get_order_items_by_phone_code', { p_phone: phone, p_code: code });
+    const { data: itemsData } = await sb.rpc('get_order_items_by_phone_code', { p_store_id: activeStore.id, p_phone: phone, p_code: code });
 
     resultEl.innerHTML = `
       <div class="tr-head">
@@ -975,7 +1009,7 @@ document.getElementById('customer-pill-wrap').addEventListener('click', ()=>{
   openGate();
 });
 
-(function initIdentityGate(){
+function initIdentityGate(){
   const table = getTableFromUrl();
   if(table){
     document.getElementById('ig-table-row').style.display = 'flex';
@@ -986,10 +1020,17 @@ document.getElementById('customer-pill-wrap').addEventListener('click', ()=>{
   if(saved){
     applyCustomerIdentity(saved, false);
   }
-})();
+}
 
 /* ============ INIT ============ */
 (async function init(){
+  const ok = await resolveActiveStore();
+  if(!ok){
+    document.getElementById('identity-gate').classList.add('hide');
+    document.getElementById('store-error-gate').style.display = 'flex';
+    return;
+  }
+  initIdentityGate();
   await loadStoreSettings();
   await loadCategories();
   await loadProducts();

@@ -121,6 +121,7 @@
     position:sticky; top:0; z-index:40; gap:14px;
   }
   .page-title{font-family:var(--font-h); font-weight:600; font-size:1.15rem; color:var(--charcoal); display:flex; align-items:center; gap:10px;}
+  #store-name-badge{font-family:var(--font-d); font-weight:600; font-size:.72rem; color:var(--amber-dark); background:var(--red-soft); padding:4px 10px; border-radius:20px; letter-spacing:.2px;}
   .menu-toggle{display:none; background:none; border:none; color:var(--charcoal); font-size:1.3rem; padding:4px 8px; border-radius:8px;}
   .topbar-right{display:flex; align-items:center; gap:14px;}
   .user-pill{display:flex; align-items:center; gap:8px; font-size:.85rem; color:var(--charcoal); font-weight:600;}
@@ -435,7 +436,7 @@
 
     <div class="main-wrap">
       <header class="topbar">
-        <div class="page-title"><button class="menu-toggle" id="menu-toggle">☰</button><span id="page-title-text">Dashboard</span></div>
+        <div class="page-title"><button class="menu-toggle" id="menu-toggle">☰</button><span id="page-title-text">Dashboard</span><span id="store-name-badge" style="display:none;"></span></div>
         <div class="topbar-right">
           <div class="user-pill"><span id="user-name">-</span><span class="role-badge" id="user-role">-</span></div>
           <button id="logout-btn">Keluar</button>
@@ -711,6 +712,8 @@ const sb = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
 /* ============ STATE ============ */
 let profile = null;
+let myStoreId = null;
+let myStoreName = '';
 let categories = [];
 let products = [];
 let editingProductId = null;
@@ -776,6 +779,12 @@ async function afterLogin(user){
     }
     if(!prof) throw new Error('Profil pengguna tidak ditemukan setelah dibuat.');
     profile = prof;
+    if(!profile.store_id){
+      throw new Error('Akun kamu belum ditugaskan ke toko manapun. Hubungi admin untuk menautkan akun ini ke sebuah toko.');
+    }
+    myStoreId = profile.store_id;
+    const { data: storeRow } = await sb.from('stores').select('name').eq('id', myStoreId).single();
+    myStoreName = storeRow?.name || '';
   }catch(err){
     toast('Gagal masuk: ' + err.message);
     await sb.auth.signOut();
@@ -785,6 +794,8 @@ async function afterLogin(user){
   document.getElementById('app').style.display = 'block';
   document.getElementById('user-name').textContent = profile.name;
   document.getElementById('user-role').textContent = profile.role;
+  const storeBadge = document.getElementById('store-name-badge');
+  if(myStoreName){ storeBadge.textContent = myStoreName; storeBadge.style.display = 'inline-block'; }
   applyRoleVisibility();
   await loadCategories();
   await loadProducts();
@@ -956,7 +967,7 @@ async function loadDashboard(){
   const todayStr = new Date().toISOString().slice(0,10);
 
   // stat: produk aktif
-  const { count: productCount } = await sb.from('products').select('id', { count:'exact', head:true }).eq('is_active', true);
+  const { count: productCount } = await sb.from('products').select('id', { count:'exact', head:true }).eq('is_active', true).eq('store_id', myStoreId);
   document.getElementById('stat-products').textContent = productCount ?? 0;
 
   // stat: transaksi & pendapatan hari ini
@@ -1047,7 +1058,7 @@ async function loadSalesChart(){
 
 /* ============ CATALOG ============ */
 async function loadCategories(){
-  const { data } = await sb.from('categories').select('*').order('name');
+  const { data } = await sb.from('categories').select('*').eq('store_id', myStoreId).order('name');
   categories = data || [];
   const wrap = document.getElementById('category-pills');
   wrap.innerHTML = '<button class="cat-pill active" data-cat="all">Semua</button>' +
@@ -1063,7 +1074,7 @@ async function loadCategories(){
 }
 
 async function loadProducts(forAdmin=false){
-  const { data, error } = await sb.from('products').select('*, categories(name)').order('name');
+  const { data, error } = await sb.from('products').select('*, categories(name)').eq('store_id', myStoreId).order('name');
   if(error){ toast('Gagal memuat produk: '+error.message); return; }
   products = data || [];
   renderProducts();
@@ -1223,7 +1234,8 @@ document.getElementById('confirm-pay-btn').addEventListener('click', async ()=>{
       discount_amount: discount,
       cashier_id: profile.id,
       customer_name: custName,
-      customer_phone: custPhone
+      customer_phone: custPhone,
+      store_id: myStoreId
     }).select().single();
     if(orderErr) throw orderErr;
 
@@ -1525,7 +1537,7 @@ document.getElementById('save-product-btn').addEventListener('click', async ()=>
     if(catName){
       let cat = categories.find(c=>c.name.toLowerCase()===catName.toLowerCase());
       if(!cat){
-        const { data, error } = await sb.from('categories').insert({ name: catName }).select().single();
+        const { data, error } = await sb.from('categories').insert({ name: catName, store_id: myStoreId }).select().single();
         if(error) throw error;
         cat = data; categories.push(cat);
       }
@@ -1546,7 +1558,7 @@ document.getElementById('save-product-btn').addEventListener('click', async ()=>
       if(error) throw error;
       toast('Produk diperbarui.');
     } else {
-      const { error } = await sb.from('products').insert({ name, sku, price, stock, category_id: categoryId, is_active:true, image_url: imageUrl });
+      const { error } = await sb.from('products').insert({ name, sku, price, stock, category_id: categoryId, is_active:true, image_url: imageUrl, store_id: myStoreId });
       if(error) throw error;
       toast('Produk ditambahkan.');
     }
