@@ -184,6 +184,12 @@
     .user-pill #user-name{display:none;}
     .role-badge{font-size:.6rem; padding:2px 8px;}
     #logout-btn{padding:6px 10px; font-size:.72rem;}
+    .modal{padding:20px 18px; max-width:none; width:calc(100% - 8px);}
+    .modal-backdrop{padding:10px;}
+    .pay-methods{grid-template-columns:1fr 1fr;}
+    .pay-methods .pay-method:last-child:nth-child(odd){grid-column:1 / -1;}
+    .modal-actions{flex-direction:column;}
+    .modal-actions .btn{width:100%;}
   }
 
 
@@ -344,27 +350,30 @@
     .prod-admin-head h2{font-size:1.15rem;}
     .prod-admin-head .btn{width:100%;}
 
-    table.admin-table{border:none; box-shadow:none; background:transparent; border-radius:0;}
-    table.admin-table thead{display:none;}
-    table.admin-table, table.admin-table tbody, table.admin-table tr, table.admin-table td{display:block; width:100%;}
-    table.admin-table tr{
+    table.admin-table, table.dash-table{border:none; box-shadow:none; background:transparent; border-radius:0;}
+    table.admin-table thead, table.dash-table thead{display:none;}
+    table.admin-table, table.admin-table tbody, table.admin-table tr, table.admin-table td,
+    table.dash-table, table.dash-table tbody, table.dash-table tr, table.dash-table td{display:block; width:100%;}
+    table.admin-table tr, table.dash-table tr{
       background:#fff; border:1px solid var(--paper-line); border-radius:var(--radius);
       box-shadow:var(--shadow-sm); margin-bottom:12px; padding:4px 14px; overflow:hidden;
     }
-    table.admin-table td{
+    table.admin-table td, table.dash-table td{
       display:flex; align-items:center; justify-content:space-between; gap:14px;
       padding:10px 0; border-top:1px solid var(--paper-line); font-size:.85rem; text-align:right;
     }
-    table.admin-table tr td:first-child{border-top:none;}
-    table.admin-table td::before{
+    table.admin-table tr td:first-child, table.dash-table tr td:first-child{border-top:none;}
+    table.admin-table td::before, table.dash-table td::before{
       content:attr(data-label); flex:0 0 auto; font-size:.66rem; font-weight:700;
       text-transform:uppercase; letter-spacing:.4px; color:var(--muted); text-align:left;
     }
-    table.admin-table td[data-label=""]::before{content:none;}
+    table.admin-table td[data-label=""]::before, table.dash-table td[data-label=""]::before{content:none;}
     table.admin-table td.td-photo{justify-content:flex-start;}
     table.admin-table input.inline-stock{width:88px; text-align:right; margin-left:auto;}
     table.admin-table td.td-actions{justify-content:flex-end; gap:8px;}
+    table.dash-table td{text-align:right; white-space:normal; word-break:break-word;}
 
+    .dash-panel{padding:16px 16px;}
     .qris-settings-card{max-width:none !important; width:100%;}
   }
 </style>
@@ -972,12 +981,12 @@ async function loadRecentSales(){
   if(top.length===0){ tbody.innerHTML = `<tr><td colspan="6" style="color:var(--muted);padding:14px 8px;">Belum ada transaksi.</td></tr>`; return; }
   tbody.innerHTML = top.map((r,i)=>`
     <tr>
-      <td>${i+1}</td>
-      <td>${r.kasir}</td>
-      <td>${r.tgl}</td>
-      <td>${r.produk}</td>
-      <td>${r.qty} pcs</td>
-      <td>${rupiah(r.subtotal)}</td>
+      <td data-label="No">${i+1}</td>
+      <td data-label="Kasir">${r.kasir}</td>
+      <td data-label="Tgl Transaksi">${r.tgl}</td>
+      <td data-label="Produk">${r.produk}</td>
+      <td data-label="Qty">${r.qty} pcs</td>
+      <td data-label="Sub Total">${rupiah(r.subtotal)}</td>
     </tr>
   `).join('');
 }
