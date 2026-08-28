@@ -984,7 +984,7 @@ async function loadRecentSales(){
 
   tbody.innerHTML = data.map(o=>{
     const items = o.order_items || [];
-    const produkText = items.map(it => (it.products?.name || 'produk') + ' ×' + it.quantity).join(', ') || '-';
+    const produkText = summarizeOrderItems(items) || '-';
     const totalQty = items.reduce((s,it)=> s + Number(it.quantity||0), 0);
     return `
     <tr>
@@ -1273,6 +1273,16 @@ function showReceipt(order, items, sums){
   openModal('receipt-modal');
 }
 
+function summarizeOrderItems(items){
+  const map = new Map();
+  (items||[]).forEach(i=>{
+    const name = i.products?.name || 'produk';
+    if(!map.has(name)) map.set(name, 0);
+    map.set(name, map.get(name) + Number(i.quantity||0));
+  });
+  return Array.from(map.entries()).map(([name, qty]) => `${name} ×${qty}`).join(', ');
+}
+
 /* ============ ORDERS ============ */
 async function loadOrders(){
   const { data, error } = await sb.from('orders').select('*, order_items(*, products(name)), payments(*)').order('created_at', {ascending:false}).limit(50);
@@ -1283,7 +1293,7 @@ function renderOrders(orders){
   const wrap = document.getElementById('orders-list');
   if(orders.length===0){ wrap.innerHTML = '<div class="empty-state"><div class="big">🧾</div>Belum ada pesanan.</div>'; return; }
   wrap.innerHTML = orders.map(o=>{
-    const itemsText = (o.order_items||[]).map(i=> (i.products?.name||'produk') + ' ×'+i.quantity).join(', ');
+    const itemsText = summarizeOrderItems(o.order_items);
     const nextStatusBtns = getNextStatusButtons(o);
     const lastPayment = (o.payments||[]).slice(-1)[0];
     const payChip = o.payment_status==='paid'
