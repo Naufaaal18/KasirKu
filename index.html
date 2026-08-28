@@ -33,6 +33,10 @@
   body{
     font-family:var(--font-d); background:var(--paper); color:var(--charcoal);
     -webkit-font-smoothing:antialiased; letter-spacing:-.01em;
+    -webkit-user-select:none; -moz-user-select:none; user-select:none; -webkit-touch-callout:none;
+  }
+  input, textarea, select, [contenteditable]{
+    -webkit-user-select:text; -moz-user-select:text; user-select:text; -webkit-touch-callout:default;
   }
   button{font-family:inherit; cursor:pointer;}
   input,select,textarea{font-family:inherit;}
@@ -169,6 +173,17 @@
   }
   @media(max-width:560px){
     .stat-grid{grid-template-columns:1fr;}
+  }
+  @media(max-width:480px){
+    header.topbar{padding:12px 14px; gap:8px;}
+    .menu-toggle{padding:4px 6px; font-size:1.15rem;}
+    .page-title{font-size:.98rem; gap:6px; min-width:0; flex:1;}
+    #page-title-text{white-space:nowrap; overflow:hidden; text-overflow:ellipsis; display:block; max-width:100%;}
+    .topbar-right{gap:7px; flex:0 0 auto;}
+    .user-pill{gap:6px;}
+    .user-pill #user-name{display:none;}
+    .role-badge{font-size:.6rem; padding:2px 8px;}
+    #logout-btn{padding:6px 10px; font-size:.72rem;}
   }
 
 
