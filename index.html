@@ -485,6 +485,11 @@
           <div class="chart-wrap"><canvas id="sales-chart"></canvas></div>
         </div>
       </div>
+
+      <div class="dash-panel" style="margin-top:18px;">
+        <h3>📋 Ringkasan Pesanan Aktif <span style="font-weight:400;font-size:.72rem;color:var(--muted);text-transform:none;letter-spacing:0;">(pending / accepted / preparing / ready)</span></h3>
+        <div id="active-orders-summary"><p style="color:var(--muted);font-size:.85rem;">Memuat...</p></div>
+      </div>
     </section>
 
     <!-- ---- POS VIEW ---- -->
@@ -858,7 +863,7 @@ let staffCache = [];
 async function loadStaff(){
   const body = document.getElementById('staff-table-body');
   body.innerHTML = '<tr><td colspan="5" style="color:var(--muted);padding:14px 8px;">Memuat...</td></tr>';
-  const { data, error } = await sb.from('profiles').select('*').order('created_at', { ascending:true });
+  const { data, error } = await sb.from('profiles').select('*').eq('store_id', myStoreId).order('created_at', { ascending:true });
   if(error){ body.innerHTML = `<tr><td colspan="5">Gagal memuat: ${error.message}</td></tr>`; return; }
   staffCache = data || [];
   if(staffCache.length===0){ body.innerHTML = '<tr><td colspan="5" style="color:var(--muted);padding:14px 8px;">Belum ada staf.</td></tr>'; return; }
@@ -971,24 +976,68 @@ async function loadDashboard(){
   document.getElementById('stat-products').textContent = productCount ?? 0;
 
   // stat: transaksi & pendapatan hari ini
-  const { data: todayOrders } = await sb.from('orders').select('total_amount, payment_status').eq('order_date', todayStr);
+  const { data: todayOrders } = await sb.from('orders').select('total_amount, payment_status').eq('order_date', todayStr).eq('store_id', myStoreId);
   const ordersToday = todayOrders || [];
   document.getElementById('stat-orders-today').textContent = ordersToday.length;
   const revenueToday = ordersToday.filter(o=>o.payment_status==='paid').reduce((s,o)=> s + Number(o.total_amount||0), 0);
   document.getElementById('stat-revenue-today').textContent = rupiah(revenueToday);
 
   // stat: total karyawan
-  const { count: staffCount } = await sb.from('profiles').select('id', { count:'exact', head:true });
+  const { count: staffCount } = await sb.from('profiles').select('id', { count:'exact', head:true }).eq('store_id', myStoreId);
   document.getElementById('stat-staff').textContent = staffCount ?? 0;
 
   await loadRecentSales();
   await loadSalesChart();
+  await loadActiveOrdersSummary();
+}
+
+/* ============ RINGKASAN PESANAN AKTIF ============ */
+async function loadActiveOrdersSummary(){
+  const box = document.getElementById('active-orders-summary');
+  const ACTIVE_STATUSES = ['pending','accepted','preparing','ready'];
+
+  const { data, error } = await sb.from('orders')
+    .select('order_number, customer_name, order_status, order_items(quantity, products(name))')
+    .eq('store_id', myStoreId)
+    .in('order_status', ACTIVE_STATUSES);
+
+  if(error){ box.innerHTML = `<p style="color:var(--red);font-size:.85rem;">Gagal memuat: ${error.message}</p>`; return; }
+  if(!data || data.length===0){ box.innerHTML = `<p style="color:var(--muted);font-size:.85rem;">Tidak ada pesanan aktif saat ini.</p>`; return; }
+
+  // productName -> { total, rows: [{ label, qty }] }
+  const perProduct = {};
+  data.forEach(o=>{
+    const label = o.customer_name?.trim() || o.order_number;
+    (o.order_items || []).forEach(it=>{
+      const pname = it.products?.name || 'Produk tidak diketahui';
+      const qty = Number(it.quantity || 0);
+      if(!perProduct[pname]) perProduct[pname] = { total: 0, rows: [] };
+      perProduct[pname].total += qty;
+      perProduct[pname].rows.push({ label, qty });
+    });
+  });
+
+  const productNames = Object.keys(perProduct).sort((a,b)=> perProduct[b].total - perProduct[a].total);
+
+  box.innerHTML = productNames.map(pname=>{
+    const { total, rows } = perProduct[pname];
+    const rowsHtml = rows.map(r=> `<div style="display:flex;justify-content:space-between;padding:3px 0;font-size:.85rem;color:var(--muted);"><span>${r.label}</span><span>${r.qty}</span></div>`).join('');
+    return `
+    <div style="padding:10px 0;border-top:1px solid var(--paper-line);">
+      <div style="display:flex;justify-content:space-between;align-items:center;font-weight:600;">
+        <span>${pname}</span>
+        <span>Total: ${total}</span>
+      </div>
+      <div style="margin-top:4px;">${rowsHtml}</div>
+    </div>`;
+  }).join('');
 }
 
 async function loadRecentSales(){
   const tbody = document.getElementById('dash-recent-sales');
   const { data, error } = await sb.from('orders')
     .select('order_number, created_at, total_amount, profiles(name), order_items(quantity, products(name))')
+    .eq('store_id', myStoreId)
     .order('created_at', { ascending:false })
     .limit(7);
   if(error){ tbody.innerHTML = `<tr><td colspan="6" style="color:var(--red);padding:14px 8px;">Gagal memuat: ${error.message}</td></tr>`; return; }
@@ -1019,7 +1068,7 @@ async function loadSalesChart(){
     days.push(d.toISOString().slice(0,10));
   }
   const fromDate = days[0];
-  const { data, error } = await sb.from('orders').select('order_date, total_amount, payment_status').gte('order_date', fromDate);
+  const { data, error } = await sb.from('orders').select('order_date, total_amount, payment_status').gte('order_date', fromDate).eq('store_id', myStoreId);
   const totals = Object.fromEntries(days.map(d=>[d,0]));
   if(!error){
     (data||[]).forEach(o=>{
@@ -1298,7 +1347,7 @@ function summarizeOrderItems(items){
 
 /* ============ ORDERS ============ */
 async function loadOrders(){
-  const { data, error } = await sb.from('orders').select('*, order_items(*, products(name)), payments(*)').order('created_at', {ascending:false}).limit(50);
+  const { data, error } = await sb.from('orders').select('*, order_items(*, products(name)), payments(*)').eq('store_id', myStoreId).order('created_at', {ascending:false}).limit(50);
   if(error){ toast('Gagal memuat pesanan: '+error.message); return; }
   renderOrders(data || []);
 }
@@ -1362,15 +1411,16 @@ async function updateOrderStatus(id, status){
 document.getElementById('refresh-orders-btn').addEventListener('click', loadOrders);
 
 function subscribeRealtime(){
+  const storeFilter = `store_id=eq.${myStoreId}`;
   sb.channel('orders-realtime')
-    .on('postgres_changes', { event:'INSERT', schema:'public', table:'orders' }, payload=>{
+    .on('postgres_changes', { event:'INSERT', schema:'public', table:'orders', filter: storeFilter }, payload=>{
       if(payload.new.order_type !== 'in_store'){
         beep();
         toast('Pesanan online baru masuk: ' + payload.new.order_number, 'new-order');
       }
       if(document.getElementById('view-orders').classList.contains('active')) loadOrders();
     })
-    .on('postgres_changes', { event:'UPDATE', schema:'public', table:'orders' }, ()=>{
+    .on('postgres_changes', { event:'UPDATE', schema:'public', table:'orders', filter: storeFilter }, ()=>{
       if(document.getElementById('view-orders').classList.contains('active')) loadOrders();
     })
     .subscribe();
