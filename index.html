@@ -1004,24 +1004,25 @@ async function loadActiveOrdersSummary(){
   if(error){ box.innerHTML = `<p style="color:var(--red);font-size:.85rem;">Gagal memuat: ${error.message}</p>`; return; }
   if(!data || data.length===0){ box.innerHTML = `<p style="color:var(--muted);font-size:.85rem;">Tidak ada pesanan aktif saat ini.</p>`; return; }
 
-  // productName -> { total, rows: [{ label, qty }] }
+  // productName -> { total, byCustomer: { label: qty } }
   const perProduct = {};
   data.forEach(o=>{
     const label = o.customer_name?.trim() || o.order_number;
     (o.order_items || []).forEach(it=>{
       const pname = it.products?.name || 'Produk tidak diketahui';
       const qty = Number(it.quantity || 0);
-      if(!perProduct[pname]) perProduct[pname] = { total: 0, rows: [] };
+      if(!perProduct[pname]) perProduct[pname] = { total: 0, byCustomer: {} };
       perProduct[pname].total += qty;
-      perProduct[pname].rows.push({ label, qty });
+      perProduct[pname].byCustomer[label] = (perProduct[pname].byCustomer[label] || 0) + qty;
     });
   });
 
   const productNames = Object.keys(perProduct).sort((a,b)=> perProduct[b].total - perProduct[a].total);
 
   box.innerHTML = productNames.map(pname=>{
-    const { total, rows } = perProduct[pname];
-    const rowsHtml = rows.map(r=> `<div style="display:flex;justify-content:space-between;padding:3px 0;font-size:.85rem;color:var(--muted);"><span>${r.label}</span><span>${r.qty}</span></div>`).join('');
+    const { total, byCustomer } = perProduct[pname];
+    const rows = Object.entries(byCustomer).sort((a,b)=> b[1]-a[1]);
+    const rowsHtml = rows.map(([label, qty])=> `<div style="display:flex;justify-content:space-between;padding:3px 0;font-size:.85rem;color:var(--muted);"><span>${label}</span><span>${qty}</span></div>`).join('');
     return `
     <div style="padding:10px 0;border-top:1px solid var(--paper-line);">
       <div style="display:flex;justify-content:space-between;align-items:center;font-weight:600;">
