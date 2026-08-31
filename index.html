@@ -477,14 +477,23 @@
           <h3>Data Penjualan Terbaru</h3>
           <div style="display:flex;flex-wrap:wrap;gap:8px;margin:10px 0 14px;">
             <input type="text" id="sales-filter-search" placeholder="Cari customer / no. pesanan..." style="flex:1;min-width:160px;padding:7px 10px;border:1.5px solid var(--paper-line);border-radius:8px;font-size:.82rem;">
+            <select id="sales-filter-status" style="padding:7px 10px;border:1.5px solid var(--paper-line);border-radius:8px;font-size:.82rem;background:#fff;">
+              <option value="">Semua Status</option>
+              <option value="pending">Pending</option>
+              <option value="accepted">Accepted</option>
+              <option value="preparing">Preparing</option>
+              <option value="ready">Ready</option>
+              <option value="completed">Completed</option>
+              <option value="cancelled">Cancelled</option>
+            </select>
             <input type="date" id="sales-filter-from" style="padding:7px 10px;border:1.5px solid var(--paper-line);border-radius:8px;font-size:.82rem;">
             <span style="align-self:center;color:var(--muted);font-size:.8rem;">s/d</span>
             <input type="date" id="sales-filter-to" style="padding:7px 10px;border:1.5px solid var(--paper-line);border-radius:8px;font-size:.82rem;">
             <button class="btn btn-ghost" id="sales-filter-reset" style="padding:7px 12px;font-size:.8rem;">Reset</button>
           </div>
           <table class="dash-table">
-            <thead><tr><th>No. Pesanan</th><th>Customer</th><th>Kasir</th><th>Tgl Transaksi</th><th>Produk</th><th>Qty</th><th>Total</th></tr></thead>
-            <tbody id="dash-recent-sales"><tr><td colspan="7" style="color:var(--muted);padding:14px 8px;">Memuat...</td></tr></tbody>
+            <thead><tr><th>No. Pesanan</th><th>Customer</th><th>Status</th><th>Pembayaran</th><th>Kasir</th><th>Tgl Transaksi</th><th>Produk</th><th>Qty</th><th>Total</th></tr></thead>
+            <tbody id="dash-recent-sales"><tr><td colspan="9" style="color:var(--muted);padding:14px 8px;">Memuat...</td></tr></tbody>
           </table>
         </div>
         <div class="dash-panel">
@@ -1045,11 +1054,12 @@ async function loadActiveOrdersSummary(){
 async function loadRecentSales(){
   const tbody = document.getElementById('dash-recent-sales');
   const search = document.getElementById('sales-filter-search').value.trim();
+  const status = document.getElementById('sales-filter-status').value;
   const fromDate = document.getElementById('sales-filter-from').value;
   const toDate = document.getElementById('sales-filter-to').value;
 
   let query = sb.from('orders')
-    .select('order_number, created_at, total_amount, customer_name, order_date, profiles(name), order_items(quantity, products(name))')
+    .select('order_number, created_at, total_amount, customer_name, order_date, order_status, payment_status, profiles(name), order_items(quantity, products(name))')
     .eq('store_id', myStoreId)
     .order('created_at', { ascending:false })
     .limit(30);
@@ -1058,21 +1068,27 @@ async function loadRecentSales(){
     const esc = search.replace(/[%,()]/g,'');
     if(esc) query = query.or(`customer_name.ilike.%${esc}%,order_number.ilike.%${esc}%`);
   }
+  if(status) query = query.eq('order_status', status);
   if(fromDate) query = query.gte('order_date', fromDate);
   if(toDate) query = query.lte('order_date', toDate);
 
   const { data, error } = await query;
-  if(error){ tbody.innerHTML = `<tr><td colspan="7" style="color:var(--red);padding:14px 8px;">Gagal memuat: ${error.message}</td></tr>`; return; }
-  if(!data || data.length===0){ tbody.innerHTML = `<tr><td colspan="7" style="color:var(--muted);padding:14px 8px;">Tidak ada transaksi yang cocok.</td></tr>`; return; }
+  if(error){ tbody.innerHTML = `<tr><td colspan="9" style="color:var(--red);padding:14px 8px;">Gagal memuat: ${error.message}</td></tr>`; return; }
+  if(!data || data.length===0){ tbody.innerHTML = `<tr><td colspan="9" style="color:var(--muted);padding:14px 8px;">Tidak ada transaksi yang cocok.</td></tr>`; return; }
 
   tbody.innerHTML = data.map(o=>{
     const items = o.order_items || [];
     const produkText = summarizeOrderItems(items) || '-';
     const totalQty = items.reduce((s,it)=> s + Number(it.quantity||0), 0);
+    const payChip = o.payment_status==='paid'
+      ? `<span class="status-chip status-ready">Lunas</span>`
+      : `<span class="status-chip status-pending">Belum Dibayar</span>`;
     return `
     <tr>
       <td data-label="No. Pesanan" style="font-family:var(--font-m);font-weight:700;">${o.order_number}</td>
       <td data-label="Customer">${o.customer_name || '-'}</td>
+      <td data-label="Status"><span class="status-chip status-${o.order_status}">${o.order_status}</span></td>
+      <td data-label="Pembayaran">${payChip}</td>
       <td data-label="Kasir">${o.profiles?.name || '-'}</td>
       <td data-label="Tgl Transaksi">${new Date(o.created_at).toLocaleDateString('id-ID')}</td>
       <td data-label="Produk"><span class="produk-list">${produkText}</span></td>
@@ -1087,10 +1103,12 @@ function debounce(fn, ms){
   return (...args)=>{ clearTimeout(t); t = setTimeout(()=> fn(...args), ms); };
 }
 document.getElementById('sales-filter-search').addEventListener('input', debounce(loadRecentSales, 350));
+document.getElementById('sales-filter-status').addEventListener('change', loadRecentSales);
 document.getElementById('sales-filter-from').addEventListener('change', loadRecentSales);
 document.getElementById('sales-filter-to').addEventListener('change', loadRecentSales);
 document.getElementById('sales-filter-reset').addEventListener('click', ()=>{
   document.getElementById('sales-filter-search').value = '';
+  document.getElementById('sales-filter-status').value = '';
   document.getElementById('sales-filter-from').value = '';
   document.getElementById('sales-filter-to').value = '';
   loadRecentSales();
