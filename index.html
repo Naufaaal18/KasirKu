@@ -376,6 +376,40 @@
     .cart-panel{position:static; max-height:none;}
     main{padding:18px 16px 36px;}
   }
+
+  /* ---------- MOBILE CART SHEET ---------- */
+  .cart-sheet-close{display:none;}
+  .mobile-cart-bar{display:none;}
+  .cart-sheet-backdrop{display:none;}
+  @media(max-width:900px){
+    .pos-layout{padding-bottom:76px;}
+    .cart-panel{
+      position:fixed; left:0; right:0; bottom:0; top:auto; z-index:90;
+      max-height:85vh; border-radius:20px 20px 0 0; box-shadow:0 -8px 28px rgba(20,16,10,.22);
+      transform:translateY(105%); transition:transform .28s cubic-bezier(.32,.72,0,1);
+    }
+    .cart-panel.mobile-show{transform:translateY(0);}
+    .cart-head{position:relative; padding-top:14px;}
+    .cart-sheet-close{
+      display:flex; align-items:center; justify-content:center; position:absolute; top:10px; right:14px;
+      width:30px; height:30px; border-radius:50%; border:none; background:var(--paper); color:var(--muted); font-size:1rem;
+    }
+    .cart-sheet-backdrop{
+      display:block; position:fixed; inset:0; background:rgba(20,16,10,.45); z-index:88;
+      opacity:0; pointer-events:none; transition:opacity .25s ease;
+    }
+    .cart-sheet-backdrop.show{opacity:1; pointer-events:auto;}
+    .mobile-cart-bar{
+      display:flex; align-items:center; justify-content:space-between; gap:10px;
+      position:fixed; left:14px; right:14px; bottom:14px; z-index:91;
+      background:var(--ink); color:#fff; border:none; border-radius:16px; padding:14px 18px;
+      box-shadow:0 10px 26px rgba(20,16,10,.35); cursor:pointer;
+    }
+    .mcb-info{display:flex; flex-direction:column; align-items:flex-start; gap:2px; text-align:left;}
+    .mcb-count{font-size:.72rem; color:#C7BEB0; font-weight:600; text-transform:uppercase; letter-spacing:.4px;}
+    .mcb-total{font-family:var(--font-m); font-size:1.05rem; font-weight:700; color:var(--amber);}
+    .mcb-cta{font-size:.85rem; font-weight:700; color:#fff;}
+  }
   @media(max-width:600px){
     .product-grid{grid-template-columns:repeat(auto-fill,minmax(128px,1fr)); gap:10px;}
     .product-card{padding:10px;}
@@ -574,8 +608,9 @@
           <div class="product-grid" id="product-grid"></div>
         </div>
 
-        <aside class="cart-panel">
+        <aside class="cart-panel" id="cart-panel">
           <div class="cart-head">
+            <button class="cart-sheet-close" id="cart-sheet-close" aria-label="Tutup">✕</button>
             <h3>Pesanan Saat Ini</h3>
             <div class="order-type-tabs">
               <button class="active" data-otype="in_store">Di Toko</button>
@@ -603,6 +638,11 @@
           </div>
         </aside>
       </div>
+      <div class="cart-sheet-backdrop" id="cart-sheet-backdrop"></div>
+      <button class="mobile-cart-bar" id="mobile-cart-bar" style="display:none;">
+        <span class="mcb-info"><span class="mcb-count" id="mcb-count">0 item</span><span class="mcb-total" id="mcb-total">Rp 0</span></span>
+        <span class="mcb-cta">Lihat Pesanan →</span>
+      </button>
     </section>
 
     <!-- ---- ORDERS VIEW ---- -->
@@ -1383,10 +1423,36 @@ function calcTotals(){
   document.getElementById('sum-discount').textContent = '- ' + rupiah(discount);
   document.getElementById('sum-total').textContent = rupiah(total);
   document.getElementById('checkout-btn').disabled = cart.length===0;
+  updateMobileCartBar(total);
   return { subtotal, discount, total };
 }
 document.getElementById('discount-type').addEventListener('change', calcTotals);
 document.getElementById('discount-value').addEventListener('input', calcTotals);
+
+/* ============ MOBILE CART SHEET ============ */
+function updateMobileCartBar(total){
+  const bar = document.getElementById('mobile-cart-bar');
+  const itemCount = cart.reduce((s,c)=>s + c.qty, 0);
+  if(cart.length===0){
+    bar.style.display = 'none';
+    closeMobileCart();
+    return;
+  }
+  bar.style.display = 'flex';
+  document.getElementById('mcb-count').textContent = itemCount + ' item';
+  document.getElementById('mcb-total').textContent = rupiah(total);
+}
+function openMobileCart(){
+  document.getElementById('cart-panel').classList.add('mobile-show');
+  document.getElementById('cart-sheet-backdrop').classList.add('show');
+}
+function closeMobileCart(){
+  document.getElementById('cart-panel').classList.remove('mobile-show');
+  document.getElementById('cart-sheet-backdrop').classList.remove('show');
+}
+document.getElementById('mobile-cart-bar').addEventListener('click', openMobileCart);
+document.getElementById('cart-sheet-close').addEventListener('click', closeMobileCart);
+document.getElementById('cart-sheet-backdrop').addEventListener('click', closeMobileCart);
 
 document.querySelectorAll('.order-type-tabs button').forEach(b=>{
   b.addEventListener('click', ()=>{
@@ -1399,6 +1465,7 @@ document.querySelectorAll('.order-type-tabs button').forEach(b=>{
 
 /* ============ CHECKOUT ============ */
 document.getElementById('checkout-btn').addEventListener('click', ()=>{
+  closeMobileCart();
   cashInput = '';
   updateCashDisplay();
   selectedPayMethod = 'cash';
