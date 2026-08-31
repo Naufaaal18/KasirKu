@@ -385,7 +385,7 @@
     <div class="field"><label>Nama</label><input type="text" id="co-name" placeholder="Nama kamu" required></div>
     <div class="field"><label>No. HP</label><input type="tel" id="co-phone" placeholder="08xxxxxxxxxx" required></div>
     <div class="field" id="co-address-field" style="display:none;"><label>Alamat Pengantaran</label><textarea id="co-address" placeholder="Alamat lengkap untuk delivery"></textarea></div>
-    <div class="field"><label>Catatan (opsional)</label><textarea id="co-notes" placeholder="mis. pedas sedikit, tanpa es, dll."></textarea></div>
+    <div class="field" id="co-notes-field"><label>Catatan (opsional)</label><textarea id="co-notes" placeholder="mis. pedas sedikit, tanpa es, dll."></textarea></div>
     <button class="btn btn-primary btn-block" id="to-payment-btn">Lanjut ke Pembayaran</button>
   </div>
 </div>
@@ -411,8 +411,8 @@
         <div class="qris-amount" id="qris-amount">Rp 0</div>
         <div class="hint" id="qris-merchant"></div>
       </div>
-      <div class="field" style="margin-top:16px;"><label>No. Referensi / ID Transaksi</label><input type="text" id="pay-ref-qris" placeholder="Dari struk atau riwayat transaksi e-wallet/m-banking kamu"></div>
-      <div class="hint">Scan QRIS di atas, bayar sesuai nominal, lalu masukkan nomor referensi transaksinya. Staf kami akan mengecek dan mengonfirmasi pembayaranmu.</div>
+      <div class="field" style="margin-top:16px;"><label>Nama Rekening Pengirim</label><input type="text" id="pay-ref-qris" placeholder="Nama sesuai rekening/e-wallet kamu saat transfer"></div>
+      <div class="hint">Scan QRIS di atas, bayar sesuai nominal, lalu masukkan nama rekening/e-wallet pengirim. Staf kami akan mengecek dan mengonfirmasi pembayaranmu.</div>
     </div>
 
     <div id="pay-panel-transfer" class="pay-panel" style="display:none;">
@@ -425,8 +425,8 @@
         </div>
         <div class="qris-amount" id="transfer-amount" style="text-align:center;">Rp 0</div>
       </div>
-      <div class="field" style="margin-top:16px;"><label>No. Referensi / ID Transaksi</label><input type="text" id="pay-ref-transfer" placeholder="Dari bukti transfer m-banking kamu"></div>
-      <div class="hint">Transfer sesuai nominal ke rekening di atas, lalu masukkan nomor referensi transaksinya. Staf kami akan mengecek dan mengonfirmasi pembayaranmu.</div>
+      <div class="field" style="margin-top:16px;"><label>Nama Rekening Pengirim</label><input type="text" id="pay-ref-transfer" placeholder="Nama sesuai rekening kamu saat transfer"></div>
+      <div class="hint">Transfer sesuai nominal ke rekening di atas, lalu masukkan nama rekening pengirim. Staf kami akan mengecek dan mengonfirmasi pembayaranmu.</div>
     </div>
 
     <div id="pay-panel-cash" class="pay-panel" style="display:none;">
@@ -488,6 +488,8 @@ function applyStoreBranding(){
   if(topbarSub) topbarSub.textContent = subtitle;
   const noteWrap = document.getElementById('detail-note-wrap');
   if(noteWrap) noteWrap.style.display = 'none';
+  const coNotesField = document.getElementById('co-notes-field');
+  if(coNotesField) coNotesField.style.display = 'none';
 }
 
 /* ============ HELPERS ============ */
@@ -953,7 +955,7 @@ async function doTrack(){
       <div class="totals-line" style="font-weight:800;color:var(--charcoal);"><span>Total</span><span>${rupiah(o.total_amount)}</span></div>
       <div class="totals-line"><span>Metode</span><span>${o.payment_method==='cash' ? 'Bayar di Tempat (COD)' : (o.payment_method==='qris' ? 'QRIS' : 'Transfer')}</span></div>
       <div class="totals-line"><span>Pembayaran</span><span>${o.payment_status==='unpaid' ? (o.payment_method==='cash' ? 'Bayar Saat Diterima' : 'Menunggu Verifikasi') : (payLabel[o.payment_status]||o.payment_status)}</span></div>
-      ${o.transaction_ref ? `<div class="totals-line"><span>No. Referensi</span><span style="font-family:var(--font-m);">${o.transaction_ref}</span></div>` : ''}
+      ${o.transaction_ref ? `<div class="totals-line"><span>${o.payment_method==='cash' ? 'Referensi' : 'Nama Pengirim'}</span><span style="font-family:var(--font-m);">${o.transaction_ref}</span></div>` : ''}
       ${o.pickup_time ? `<div class="totals-line"><span>Waktu Ambil</span><span>${new Date(o.pickup_time).toLocaleString('id-ID')}</span></div>` : ''}
       ${o.notes ? `<div class="hint" style="margin-top:8px;">Catatan: ${o.notes}</div>` : ''}
     `;

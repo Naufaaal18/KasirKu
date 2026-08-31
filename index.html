@@ -131,7 +131,7 @@
   #logout-btn:hover{border-color:var(--amber); color:var(--amber-dark);}
   .sidebar-backdrop{display:none; position:fixed; inset:0; background:rgba(20,16,10,.5); z-index:44;}
 
-  main{flex:1; padding:24px 26px 44px; width:100%; margin:0;}
+  main{flex:1; padding:24px 26px 44px; width:100%; margin:0; min-width:0;}
   .view{display:none;}
   .view.active{display:block;}
 
@@ -202,6 +202,7 @@
 
   /* ---------- POS VIEW ---------- */
   .pos-layout{display:grid; grid-template-columns:1fr 380px; gap:22px; align-items:start;}
+  .pos-layout > *{min-width:0;}
   .catalog-toolbar{display:flex; gap:10px; margin-bottom:16px; flex-wrap:wrap;}
   .search-box{flex:1; min-width:200px; position:relative;}
   .search-box input{width:100%; padding:12px 14px 12px 40px; border-radius:var(--radius-sm); border:1.5px solid var(--paper-line); background:#fff; font-size:.92rem; transition:border-color .15s, box-shadow .15s;}
@@ -374,6 +375,17 @@
     .pos-layout{grid-template-columns:1fr;}
     .cart-panel{position:static; max-height:none;}
     main{padding:18px 16px 36px;}
+  }
+  @media(max-width:600px){
+    .product-grid{grid-template-columns:repeat(auto-fill,minmax(128px,1fr)); gap:10px;}
+    .product-card{padding:10px;}
+    .product-name{font-size:.82rem;}
+    .cat-pills{gap:6px;}
+    .cat-pill{padding:7px 13px; font-size:.78rem;}
+    .search-box input{padding:11px 14px 11px 38px; font-size:.88rem;}
+  }
+  @media(max-width:380px){
+    .product-grid{grid-template-columns:repeat(auto-fill,minmax(112px,1fr)); gap:8px;}
   }
 
   /* ---------- ADMIN TABLES -> CARDS ON MOBILE ---------- */
@@ -1520,11 +1532,13 @@ function renderOrders(orders){
     const lastPayment = (o.payments||[]).slice(-1)[0];
     const payChip = o.payment_status==='paid'
       ? `<span class="status-chip status-ready">Lunas</span>`
-      : `<span class="status-chip status-pending">${lastPayment?.transaction_ref ? 'Menunggu Verifikasi' : 'Belum Dibayar'}</span>`;
+      : o.payment_status==='cancelled'
+        ? `<span class="status-chip status-cancelled">Dibatalkan</span>`
+        : `<span class="status-chip status-pending">${lastPayment?.transaction_ref ? 'Menunggu Verifikasi' : 'Belum Dibayar'}</span>`;
     const payRefLine = lastPayment?.transaction_ref
-      ? `<div class="oc-meta">Ref pembayaran (${lastPayment.payment_method}): <strong style="font-family:var(--font-m)">${lastPayment.transaction_ref}</strong></div>`
+      ? `<div class="oc-meta">${lastPayment.payment_method==='cash' ? 'Referensi' : 'Nama pengirim'} (${lastPayment.payment_method}): <strong style="font-family:var(--font-m)">${lastPayment.transaction_ref}</strong></div>`
       : '';
-    const confirmPayBtn = o.payment_status!=='paid'
+    const confirmPayBtn = (o.payment_status!=='paid' && o.payment_status!=='cancelled')
       ? `<button data-confirm-pay="${o.id}" style="color:var(--teal); border-color:var(--teal)">✓ Tandai Lunas</button>`
       : '';
     return `
@@ -1564,7 +1578,9 @@ function getNextStatusButtons(o){
   return btns;
 }
 async function updateOrderStatus(id, status){
-  const { error } = await sb.from('orders').update({ order_status: status, cashier_id: profile.id }).eq('id', id);
+  const patch = { order_status: status, cashier_id: profile.id };
+  if(status==='cancelled') patch.payment_status = 'cancelled';
+  const { error } = await sb.from('orders').update(patch).eq('id', id);
   if(error){ toast('Gagal update status: '+error.message); return; }
   loadOrders();
 }
