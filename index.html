@@ -1503,7 +1503,7 @@ function renderOrders(orders){
   });
 }
 async function confirmPayment(orderId){
-  const { error } = await sb.from('orders').update({ payment_status: 'paid', cashier_id: profile.id }).is('cashier_id', null).eq('id', orderId);
+  const { error } = await sb.from('orders').update({ payment_status: 'paid', cashier_id: profile.id }).eq('id', orderId);
   if(error){ toast('Gagal menandai lunas: '+error.message); return; }
   toast('Pembayaran dikonfirmasi.');
   loadOrders();
@@ -1520,7 +1520,7 @@ function getNextStatusButtons(o){
   return btns;
 }
 async function updateOrderStatus(id, status){
-  const { error } = await sb.from('orders').update({ order_status: status, cashier_id: profile.id }).is('cashier_id', null).eq('id', id);
+  const { error } = await sb.from('orders').update({ order_status: status, cashier_id: profile.id }).eq('id', id);
   if(error){ toast('Gagal update status: '+error.message); return; }
   loadOrders();
 }
