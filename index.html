@@ -475,9 +475,16 @@
       <div class="dash-grid">
         <div class="dash-panel">
           <h3>Data Penjualan Terbaru</h3>
+          <div style="display:flex;flex-wrap:wrap;gap:8px;margin:10px 0 14px;">
+            <input type="text" id="sales-filter-search" placeholder="Cari customer / no. pesanan..." style="flex:1;min-width:160px;padding:7px 10px;border:1.5px solid var(--paper-line);border-radius:8px;font-size:.82rem;">
+            <input type="date" id="sales-filter-from" style="padding:7px 10px;border:1.5px solid var(--paper-line);border-radius:8px;font-size:.82rem;">
+            <span style="align-self:center;color:var(--muted);font-size:.8rem;">s/d</span>
+            <input type="date" id="sales-filter-to" style="padding:7px 10px;border:1.5px solid var(--paper-line);border-radius:8px;font-size:.82rem;">
+            <button class="btn btn-ghost" id="sales-filter-reset" style="padding:7px 12px;font-size:.8rem;">Reset</button>
+          </div>
           <table class="dash-table">
-            <thead><tr><th>No. Pesanan</th><th>Kasir</th><th>Tgl Transaksi</th><th>Produk</th><th>Qty</th><th>Total</th></tr></thead>
-            <tbody id="dash-recent-sales"><tr><td colspan="6" style="color:var(--muted);padding:14px 8px;">Memuat...</td></tr></tbody>
+            <thead><tr><th>No. Pesanan</th><th>Customer</th><th>Kasir</th><th>Tgl Transaksi</th><th>Produk</th><th>Qty</th><th>Total</th></tr></thead>
+            <tbody id="dash-recent-sales"><tr><td colspan="7" style="color:var(--muted);padding:14px 8px;">Memuat...</td></tr></tbody>
           </table>
         </div>
         <div class="dash-panel">
@@ -1037,13 +1044,26 @@ async function loadActiveOrdersSummary(){
 
 async function loadRecentSales(){
   const tbody = document.getElementById('dash-recent-sales');
-  const { data, error } = await sb.from('orders')
-    .select('order_number, created_at, total_amount, profiles(name), order_items(quantity, products(name))')
+  const search = document.getElementById('sales-filter-search').value.trim();
+  const fromDate = document.getElementById('sales-filter-from').value;
+  const toDate = document.getElementById('sales-filter-to').value;
+
+  let query = sb.from('orders')
+    .select('order_number, created_at, total_amount, customer_name, order_date, profiles(name), order_items(quantity, products(name))')
     .eq('store_id', myStoreId)
     .order('created_at', { ascending:false })
-    .limit(7);
-  if(error){ tbody.innerHTML = `<tr><td colspan="6" style="color:var(--red);padding:14px 8px;">Gagal memuat: ${error.message}</td></tr>`; return; }
-  if(!data || data.length===0){ tbody.innerHTML = `<tr><td colspan="6" style="color:var(--muted);padding:14px 8px;">Belum ada transaksi.</td></tr>`; return; }
+    .limit(30);
+
+  if(search){
+    const esc = search.replace(/[%,()]/g,'');
+    if(esc) query = query.or(`customer_name.ilike.%${esc}%,order_number.ilike.%${esc}%`);
+  }
+  if(fromDate) query = query.gte('order_date', fromDate);
+  if(toDate) query = query.lte('order_date', toDate);
+
+  const { data, error } = await query;
+  if(error){ tbody.innerHTML = `<tr><td colspan="7" style="color:var(--red);padding:14px 8px;">Gagal memuat: ${error.message}</td></tr>`; return; }
+  if(!data || data.length===0){ tbody.innerHTML = `<tr><td colspan="7" style="color:var(--muted);padding:14px 8px;">Tidak ada transaksi yang cocok.</td></tr>`; return; }
 
   tbody.innerHTML = data.map(o=>{
     const items = o.order_items || [];
@@ -1052,6 +1072,7 @@ async function loadRecentSales(){
     return `
     <tr>
       <td data-label="No. Pesanan" style="font-family:var(--font-m);font-weight:700;">${o.order_number}</td>
+      <td data-label="Customer">${o.customer_name || '-'}</td>
       <td data-label="Kasir">${o.profiles?.name || '-'}</td>
       <td data-label="Tgl Transaksi">${new Date(o.created_at).toLocaleDateString('id-ID')}</td>
       <td data-label="Produk"><span class="produk-list">${produkText}</span></td>
@@ -1061,6 +1082,19 @@ async function loadRecentSales(){
   `;
   }).join('');
 }
+function debounce(fn, ms){
+  let t;
+  return (...args)=>{ clearTimeout(t); t = setTimeout(()=> fn(...args), ms); };
+}
+document.getElementById('sales-filter-search').addEventListener('input', debounce(loadRecentSales, 350));
+document.getElementById('sales-filter-from').addEventListener('change', loadRecentSales);
+document.getElementById('sales-filter-to').addEventListener('change', loadRecentSales);
+document.getElementById('sales-filter-reset').addEventListener('click', ()=>{
+  document.getElementById('sales-filter-search').value = '';
+  document.getElementById('sales-filter-from').value = '';
+  document.getElementById('sales-filter-to').value = '';
+  loadRecentSales();
+});
 
 async function loadSalesChart(){
   const days = [];
