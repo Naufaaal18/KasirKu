@@ -1538,7 +1538,7 @@ function renderOrders(orders){
     const payRefLine = lastPayment?.transaction_ref
       ? `<div class="oc-meta">${lastPayment.payment_method==='cash' ? 'Referensi' : 'Nama pengirim'} (${lastPayment.payment_method}): <strong style="font-family:var(--font-m)">${lastPayment.transaction_ref}</strong></div>`
       : '';
-    const confirmPayBtn = (o.payment_status!=='paid' && o.payment_status!=='cancelled')
+    const confirmPayBtn = (o.payment_status!=='paid' && o.payment_status!=='cancelled' && o.order_status!=='cancelled')
       ? `<button data-confirm-pay="${o.id}" style="color:var(--teal); border-color:var(--teal)">✓ Tandai Lunas</button>`
       : '';
     return `
@@ -1561,7 +1561,7 @@ function renderOrders(orders){
   });
 }
 async function confirmPayment(orderId){
-  const { error } = await sb.from('orders').update({ payment_status: 'paid', cashier_id: profile.id }).eq('id', orderId);
+  const { error } = await sb.from('orders').update({ payment_status: 'paid', cashier_id: profile.id }).eq('id', orderId).neq('order_status', 'cancelled');
   if(error){ toast('Gagal menandai lunas: '+error.message); return; }
   toast('Pembayaran dikonfirmasi.');
   loadOrders();
