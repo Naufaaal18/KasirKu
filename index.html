@@ -329,6 +329,31 @@
 
   /* ---------- PRODUCTS (ADMIN) VIEW ---------- */
   .prod-admin-head{display:flex; justify-content:space-between; align-items:center; margin-bottom:18px;}
+  .prod-filter-bar{display:flex; gap:10px; flex-wrap:wrap; align-items:center; margin-bottom:16px;}
+  .prod-filter-bar .pf-search{flex:1 1 220px; min-width:180px; position:relative;}
+  .prod-filter-bar .pf-search input{
+    width:100%; padding:10px 13px 10px 34px; border:1.5px solid var(--paper-line); border-radius:var(--radius-sm);
+    font-size:.88rem; background:#fff; outline:none; transition:border-color .15s;
+  }
+  .prod-filter-bar .pf-search input:focus{border-color:var(--amber);}
+  .prod-filter-bar .pf-search::before{
+    content:"🔍"; position:absolute; left:11px; top:50%; transform:translateY(-50%); font-size:.82rem; opacity:.55; pointer-events:none;
+  }
+  .prod-filter-bar select{
+    padding:10px 30px 10px 13px; border:1.5px solid var(--paper-line); border-radius:var(--radius-sm);
+    font-size:.85rem; background:#fff; outline:none; color:var(--ink); cursor:pointer; transition:border-color .15s;
+  }
+  .prod-filter-bar select:focus{border-color:var(--amber);}
+  .prod-filter-bar .pf-clear{
+    background:none; border:1.5px solid var(--paper-line); border-radius:var(--radius-sm); padding:10px 14px;
+    font-size:.82rem; color:var(--muted); cursor:pointer; white-space:nowrap; transition:border-color .15s, color .15s;
+  }
+  .prod-filter-bar .pf-clear:hover{border-color:var(--red); color:var(--red);}
+  .prod-filter-count{font-size:.78rem; color:var(--muted); margin-bottom:10px;}
+  @media (max-width:640px){
+    .prod-filter-bar{flex-direction:column; align-items:stretch;}
+    .prod-filter-bar select, .prod-filter-bar .pf-clear{width:100%;}
+  }
   table.admin-table{width:100%; border-collapse:collapse; background:#fff; border-radius:var(--radius); overflow:hidden; border:1px solid var(--paper-line); box-shadow:var(--shadow-sm);}
   table.admin-table th{background:var(--paper); text-align:left; font-size:.71rem; text-transform:uppercase; letter-spacing:.5px; color:var(--muted); padding:12px 15px; font-weight:700;}
   table.admin-table td{padding:12px 15px; border-top:1px solid var(--paper-line); font-size:.85rem;}
@@ -586,6 +611,17 @@
           <button class="btn btn-primary" id="add-product-btn">+ Tambah Produk</button>
         </div>
       </div>
+      <div class="prod-filter-bar">
+        <div class="pf-search"><input type="text" id="pf-search-input" placeholder="Cari nama produk atau SKU..."></div>
+        <select id="pf-category-select"><option value="all">Semua Kategori</option></select>
+        <select id="pf-status-select">
+          <option value="all">Semua Status</option>
+          <option value="active">Aktif</option>
+          <option value="inactive">Nonaktif</option>
+        </select>
+        <button class="pf-clear" id="pf-clear-btn">✕ Reset Filter</button>
+      </div>
+      <div class="prod-filter-count" id="pf-count"></div>
       <table class="admin-table">
         <thead><tr><th>Foto</th><th>Produk</th><th>Kategori</th><th>Harga</th><th>Stok</th><th>Status</th><th>Aksi</th></tr></thead>
         <tbody id="products-table-body"></tbody>
@@ -796,6 +832,9 @@ let editingProductId = null;
 let cart = []; // {product_id, name, price, qty, stock}
 let salesChart = null;
 let activeCategory = 'all';
+let pfSearch = '';
+let pfCategory = 'all';
+let pfStatus = 'all';
 let searchTerm = '';
 let orderType = 'in_store';
 let selectedPayMethod = 'cash';
@@ -1236,6 +1275,11 @@ async function loadCategories(){
       renderProducts();
     });
   });
+  const pfSelect = document.getElementById('pf-category-select');
+  const prevVal = pfSelect.value;
+  pfSelect.innerHTML = '<option value="all">Semua Kategori</option>' +
+    categories.map(c=>`<option value="${c.id}">${c.name}</option>`).join('');
+  pfSelect.value = categories.some(c=>c.id===prevVal) ? prevVal : 'all';
 }
 
 async function loadProducts(forAdmin=false){
@@ -1526,6 +1570,31 @@ async function updateOrderStatus(id, status){
 }
 document.getElementById('refresh-orders-btn').addEventListener('click', loadOrders);
 
+/* ============ PRODUCT FILTER/SEARCH (admin) ============ */
+let pfSearchDebounce;
+document.getElementById('pf-search-input').addEventListener('input', (e)=>{
+  clearTimeout(pfSearchDebounce);
+  pfSearchDebounce = setTimeout(()=>{
+    pfSearch = e.target.value;
+    renderProductsAdmin();
+  }, 200);
+});
+document.getElementById('pf-category-select').addEventListener('change', (e)=>{
+  pfCategory = e.target.value;
+  renderProductsAdmin();
+});
+document.getElementById('pf-status-select').addEventListener('change', (e)=>{
+  pfStatus = e.target.value;
+  renderProductsAdmin();
+});
+document.getElementById('pf-clear-btn').addEventListener('click', ()=>{
+  pfSearch = ''; pfCategory = 'all'; pfStatus = 'all';
+  document.getElementById('pf-search-input').value = '';
+  document.getElementById('pf-category-select').value = 'all';
+  document.getElementById('pf-status-select').value = 'all';
+  renderProductsAdmin();
+});
+
 function subscribeRealtime(){
   const storeFilter = `store_id=eq.${myStoreId}`;
   sb.channel('orders-realtime')
@@ -1543,9 +1612,30 @@ function subscribeRealtime(){
 }
 
 /* ============ PRODUCTS ADMIN ============ */
+function getFilteredProductsAdmin(){
+  const q = pfSearch.trim().toLowerCase();
+  return products.filter(p=>{
+    if(q && !(p.name.toLowerCase().includes(q) || (p.sku||'').toLowerCase().includes(q))) return false;
+    if(pfCategory!=='all' && p.category_id !== pfCategory) return false;
+    if(pfStatus==='active' && !p.is_active) return false;
+    if(pfStatus==='inactive' && p.is_active) return false;
+    return true;
+  });
+}
 function renderProductsAdmin(){
   const body = document.getElementById('products-table-body');
-  body.innerHTML = products.map(p=>`
+  const filtered = getFilteredProductsAdmin();
+  const countEl = document.getElementById('pf-count');
+  if(countEl){
+    countEl.textContent = (pfSearch || pfCategory!=='all' || pfStatus!=='all')
+      ? `Menampilkan ${filtered.length} dari ${products.length} produk`
+      : `${products.length} produk`;
+  }
+  if(filtered.length===0){
+    body.innerHTML = `<tr><td colspan="7" style="text-align:center; padding:28px; color:var(--muted);">Tidak ada produk yang cocok dengan filter.</td></tr>`;
+    return;
+  }
+  body.innerHTML = filtered.map(p=>`
     <tr>
       <td class="td-photo" data-label="">${p.image_url
         ? `<img src="${p.image_url}" style="width:44px;height:44px;object-fit:cover;border-radius:6px;border:1px solid var(--paper-line);">`
