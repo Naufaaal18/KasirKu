@@ -8,6 +8,7 @@
 <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,600;9..144,700&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=IBM+Plex+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4"></script>
+<script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
 <style>
   :root{
     /* --- warm, food-market palette (kedai/warung) --- */
@@ -471,9 +472,9 @@
           <div class="stat-foot">Transaksi lunas, hari ini</div>
         </div>
         <div class="stat-card">
-          <div class="stat-label">👥 Total Karyawan</div>
-          <div class="stat-value" id="stat-staff">0</div>
-          <div class="stat-foot">Akun staf terdaftar</div>
+          <div class="stat-label">📈 Pendapatan Bulan Ini</div>
+          <div class="stat-value" id="stat-revenue-month">Rp 0</div>
+          <div class="stat-foot">Transaksi lunas, bulan ini</div>
         </div>
       </div>
       <div class="dash-panel">
@@ -570,7 +571,10 @@
     <section class="view" id="view-products">
       <div class="prod-admin-head">
         <h2 style="margin:0;font-size:1.3rem;font-weight:600;font-family:var(--font-h);">Manajemen Produk</h2>
-        <button class="btn btn-primary" id="add-product-btn">+ Tambah Produk</button>
+        <div style="display:flex;gap:10px;flex-wrap:wrap;">
+          <button class="btn btn-ghost" id="open-import-btn">⇪ Import Produk</button>
+          <button class="btn btn-primary" id="add-product-btn">+ Tambah Produk</button>
+        </div>
       </div>
       <table class="admin-table">
         <thead><tr><th>Foto</th><th>Produk</th><th>Kategori</th><th>Harga</th><th>Stok</th><th>Status</th><th>Aksi</th></tr></thead>
@@ -681,6 +685,37 @@
     <div class="modal-actions">
       <button class="btn btn-ghost" onclick="closeModal('product-modal')">Batal</button>
       <button class="btn btn-primary" id="save-product-btn">Simpan</button>
+    </div>
+  </div>
+</div>
+
+<!-- ================= IMPORT PRODUK MODAL (admin) ================= -->
+<div class="modal-backdrop" id="import-modal">
+  <div class="modal">
+    <button class="close-x" onclick="closeModal('import-modal')">✕</button>
+    <h2>Import Produk</h2>
+    <p style="color:var(--muted);font-size:.82rem;margin:-6px 0 16px;">Isi produk banyak sekaligus pakai file Excel/CSV. Download dulu templatenya, isi, lalu upload lagi di sini.</p>
+
+    <button class="btn btn-ghost" id="download-template-btn" style="width:100%;margin-bottom:16px;">⬇ Download Template Excel</button>
+
+    <div class="field">
+      <label>Upload File Terisi (.xlsx atau .csv)</label>
+      <input type="file" id="import-file-input" accept=".xlsx,.xls,.csv">
+    </div>
+
+    <div id="import-preview" style="display:none;margin-top:10px;">
+      <div style="font-size:.82rem;font-weight:600;margin-bottom:8px;" id="import-preview-summary"></div>
+      <div style="max-height:260px;overflow:auto;border:1px solid var(--paper-line);border-radius:8px;">
+        <table class="admin-table" style="box-shadow:none;border-radius:0;">
+          <thead><tr><th>Baris</th><th>Nama</th><th>Kategori</th><th>Harga</th><th>Stok</th><th>Keterangan</th></tr></thead>
+          <tbody id="import-preview-body"></tbody>
+        </table>
+      </div>
+    </div>
+
+    <div class="modal-actions">
+      <button class="btn btn-ghost" onclick="closeModal('import-modal')">Batal</button>
+      <button class="btn btn-primary" id="run-import-btn" disabled>Import Sekarang</button>
     </div>
   </div>
 </div>
@@ -835,6 +870,8 @@ async function afterLogin(user){
   subscribeRealtime();
 }
 
+const HIJAB_STORE_ID = 'f38341bd-710c-4a2b-9e65-760d822266e6'; // Napocut (slug: hijab) — satu-satunya toko yang boleh lihat "Import Produk"
+
 function applyRoleVisibility(){
   const tabProducts = document.getElementById('tab-products');
   const tabPayment = document.getElementById('tab-payment');
@@ -849,6 +886,7 @@ function applyRoleVisibility(){
     document.querySelector('[data-view="pos"]').style.display = 'none';
     switchView('orders');
   }
+  document.getElementById('open-import-btn').style.display = (myStoreId === HIJAB_STORE_ID) ? '' : 'none';
 }
 
 (async function initSession(){
@@ -1010,9 +1048,12 @@ async function loadDashboard(){
   const revenueToday = ordersToday.filter(o=>o.payment_status==='paid').reduce((s,o)=> s + Number(o.total_amount||0), 0);
   document.getElementById('stat-revenue-today').textContent = rupiah(revenueToday);
 
-  // stat: total karyawan
-  const { count: staffCount } = await sb.from('profiles').select('id', { count:'exact', head:true }).eq('store_id', myStoreId);
-  document.getElementById('stat-staff').textContent = staffCount ?? 0;
+  // stat: pendapatan bulan ini
+  const firstOfMonth = new Date(); firstOfMonth.setDate(1);
+  const firstOfMonthStr = firstOfMonth.toISOString().slice(0,10);
+  const { data: monthOrders } = await sb.from('orders').select('total_amount, payment_status').gte('order_date', firstOfMonthStr).eq('store_id', myStoreId);
+  const revenueMonth = (monthOrders || []).filter(o=>o.payment_status==='paid').reduce((s,o)=> s + Number(o.total_amount||0), 0);
+  document.getElementById('stat-revenue-month').textContent = rupiah(revenueMonth);
 
   await loadRecentSales();
   await loadSalesChart();
@@ -1615,6 +1656,143 @@ document.getElementById('add-product-btn').addEventListener('click', ()=>{
   document.getElementById('np-image-preview-wrap').style.display = 'none';
   openModal('product-modal');
 });
+
+/* ============ IMPORT PRODUK (admin) ============ */
+const IMPORT_HEADERS = ['Nama Produk','Kategori','SKU','Harga','Harga Coret','Stok'];
+let importRows = [];
+
+document.getElementById('open-import-btn').addEventListener('click', ()=>{
+  importRows = [];
+  document.getElementById('import-file-input').value = '';
+  document.getElementById('import-preview').style.display = 'none';
+  document.getElementById('run-import-btn').disabled = true;
+  document.getElementById('run-import-btn').textContent = 'Import Sekarang';
+  openModal('import-modal');
+});
+
+document.getElementById('download-template-btn').addEventListener('click', ()=>{
+  const wsData = [
+    IMPORT_HEADERS,
+    ['Contoh: Kaos Polos Hitam', 'Kaos', 'KPH-01', 75000, 95000, 20],
+    ['Contoh: Celana Jeans', 'Celana', '', 150000, '', 10]
+  ];
+  const ws = XLSX.utils.aoa_to_sheet(wsData);
+  ws['!cols'] = [{ wch:26 },{ wch:16 },{ wch:14 },{ wch:12 },{ wch:12 },{ wch:8 }];
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, ws, 'Produk');
+  XLSX.writeFile(wb, 'template-import-produk.xlsx');
+});
+
+function getImportField(row, ...names){
+  for(const key of Object.keys(row)){
+    if(names.includes(key.trim().toLowerCase())) return row[key];
+  }
+  return '';
+}
+
+document.getElementById('import-file-input').addEventListener('change', async (e)=>{
+  const file = e.target.files[0];
+  const previewWrap = document.getElementById('import-preview');
+  const previewBody = document.getElementById('import-preview-body');
+  const summaryEl = document.getElementById('import-preview-summary');
+  const runBtn = document.getElementById('run-import-btn');
+  if(!file){ previewWrap.style.display = 'none'; runBtn.disabled = true; return; }
+
+  let rawRows;
+  try{
+    const buf = await file.arrayBuffer();
+    const wb = XLSX.read(buf, { type:'array' });
+    const ws = wb.Sheets[wb.SheetNames[0]];
+    rawRows = XLSX.utils.sheet_to_json(ws, { defval:'' });
+  }catch(err){
+    toast('Gagal membaca file: ' + err.message);
+    runBtn.disabled = true;
+    return;
+  }
+
+  importRows = rawRows.map((row, idx)=>{
+    const name = String(getImportField(row, 'nama produk','nama','produk')).trim();
+    const category = String(getImportField(row, 'kategori')).trim();
+    const sku = String(getImportField(row, 'sku')).trim();
+    const priceRaw = getImportField(row, 'harga');
+    const originalPriceRaw = getImportField(row, 'harga coret','harga coret (opsional)');
+    const stockRaw = getImportField(row, 'stok','stok awal');
+    const price = Number(priceRaw);
+    const originalPrice = originalPriceRaw !== '' ? Number(originalPriceRaw) : null;
+    const stock = stockRaw !== '' ? Number(stockRaw) : 0;
+
+    let error = '';
+    if(!name) error = 'Nama produk kosong';
+    else if(priceRaw === '' || isNaN(price) || price <= 0) error = 'Harga tidak valid';
+    else if(originalPriceRaw !== '' && isNaN(originalPrice)) error = 'Harga coret tidak valid';
+    else if(stockRaw !== '' && isNaN(stock)) error = 'Stok tidak valid';
+
+    return { rowNum: idx + 2, name, category, sku, price, originalPrice, stock: isNaN(stock) ? 0 : stock, error };
+  }).filter(r => r.name || r.category || r.sku || r.price !== 0);
+
+  const validCount = importRows.filter(r=>!r.error).length;
+  const errorCount = importRows.length - validCount;
+  summaryEl.textContent = `${importRows.length} baris terbaca — ${validCount} siap diimport${errorCount ? `, ${errorCount} bermasalah (dilewati)` : ''}.`;
+  previewBody.innerHTML = importRows.map(r=>`
+    <tr>
+      <td>${r.rowNum}</td>
+      <td>${r.name || '-'}</td>
+      <td>${r.category || '-'}</td>
+      <td>${isNaN(r.price) ? '-' : rupiah(r.price)}</td>
+      <td>${r.stock}</td>
+      <td style="color:${r.error ? 'var(--red)' : 'var(--teal)'};font-weight:600;">${r.error || 'OK'}</td>
+    </tr>
+  `).join('');
+  previewWrap.style.display = 'block';
+  runBtn.disabled = validCount === 0;
+});
+
+document.getElementById('run-import-btn').addEventListener('click', async ()=>{
+  const btn = document.getElementById('run-import-btn');
+  const validRows = importRows.filter(r=>!r.error);
+  if(validRows.length===0) return;
+  btn.disabled = true; btn.textContent = 'Mengimport...';
+  let successCount = 0;
+  const failedRows = [];
+  try{
+    for(const row of validRows){
+      try{
+        let categoryId = null;
+        if(row.category){
+          let cat = categories.find(c=>c.name.toLowerCase()===row.category.toLowerCase());
+          if(!cat){
+            const { data, error } = await sb.from('categories').insert({ name: row.category, store_id: myStoreId }).select().single();
+            if(error) throw error;
+            cat = data; categories.push(cat);
+          }
+          categoryId = cat.id;
+        }
+        const { error } = await sb.from('products').insert({
+          name: row.name,
+          sku: row.sku || null,
+          price: row.price,
+          original_price: row.originalPrice,
+          stock: row.stock,
+          category_id: categoryId,
+          is_active: true,
+          store_id: myStoreId
+        });
+        if(error) throw error;
+        successCount++;
+      }catch(err){
+        failedRows.push(`Baris ${row.rowNum} (${row.name}): ${err.message}`);
+      }
+    }
+    toast(`Import selesai: ${successCount} produk ditambahkan${failedRows.length ? `, ${failedRows.length} gagal` : ''}.`);
+    if(failedRows.length) console.warn('Baris gagal diimport:', failedRows);
+    await loadCategories();
+    await loadProducts(true);
+    closeModal('import-modal');
+  } finally {
+    btn.disabled = false; btn.textContent = 'Import Sekarang';
+  }
+});
+
 function openEditProduct(id){
   const p = products.find(x=>x.id===id);
   if(!p) return;
