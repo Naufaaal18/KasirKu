@@ -387,6 +387,11 @@
     /* ---- Data Penjualan Terbaru (dash-table-sales): terlalu banyak kolom untuk
        layout label-kiri/nilai-kanan, jadi dibikin stack (label di atas, nilai di bawah)
        biar semua nilai kebaca jelas di layar sempit ---- */
+    .dash-table-scroll{overflow-x:visible;}
+    table.dash-table-sales{min-width:0; width:100%;}
+    table.dash-table-sales td[data-label="No. Pesanan"],
+    table.dash-table-sales td[data-label="Status"],
+    table.dash-table-sales td[data-label="Pembayaran"]{ white-space:normal; }
     table.dash-table td{
       display:block; text-align:left; padding:8px 0;
       border-top:1px solid var(--paper-line); font-size:.85rem;
