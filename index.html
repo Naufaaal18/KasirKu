@@ -644,6 +644,7 @@
     <div class="field"><label>Kategori (baru atau lama)</label><input type="text" id="np-category" placeholder="mis. Minuman"></div>
     <div class="field"><label>SKU</label><input type="text" id="np-sku"></div>
     <div class="field"><label>Harga (Rp)</label><input type="number" id="np-price" min="0"></div>
+    <div class="field"><label>Harga Coret <span style="font-weight:400;color:var(--muted);">(opsional, buat tampilan diskon)</span></label><input type="number" id="np-original-price" min="0" placeholder="mis. 12000"></div>
     <div class="field"><label>Stok Awal</label><input type="number" id="np-stock" min="0"></div>
     <div class="field">
       <label>Foto Produk (opsional)</label>
@@ -1438,7 +1439,7 @@ function renderProductsAdmin(){
       </td>
       <td data-label="Produk">${p.name}<br><span style="color:var(--muted);font-size:.72rem">${p.sku||''}</span></td>
       <td data-label="Kategori">${p.categories?.name || '-'}</td>
-      <td data-label="Harga">${rupiah(p.price)}</td>
+      <td data-label="Harga">${p.original_price && p.original_price > p.price ? `<span style="text-decoration:line-through;color:var(--muted);font-size:.78rem;">${rupiah(p.original_price)}</span><br>` : ''}${rupiah(p.price)}</td>
       <td data-label="Stok"><input class="inline-stock" type="number" value="${p.stock}" data-id="${p.id}"></td>
       <td data-label="Status"><button class="toggle-active ${p.is_active?'toggle-on':'toggle-off'}" data-id="${p.id}" data-active="${p.is_active}">${p.is_active?'Aktif':'Nonaktif'}</button></td>
       <td class="td-actions" data-label="Aksi">
@@ -1541,7 +1542,7 @@ document.getElementById('save-qris-btn').addEventListener('click', async ()=>{
 document.getElementById('add-product-btn').addEventListener('click', ()=>{
   editingProductId = null;
   document.getElementById('product-modal-title').textContent = 'Tambah Produk';
-  ['np-name','np-category','np-sku','np-price','np-stock','np-image-input'].forEach(id=>document.getElementById(id).value='');
+  ['np-name','np-category','np-sku','np-price','np-original-price','np-stock','np-image-input'].forEach(id=>document.getElementById(id).value='');
   document.getElementById('np-image-preview-wrap').style.display = 'none';
   openModal('product-modal');
 });
@@ -1554,6 +1555,7 @@ function openEditProduct(id){
   document.getElementById('np-category').value = p.categories?.name || '';
   document.getElementById('np-sku').value = p.sku || '';
   document.getElementById('np-price').value = p.price || 0;
+  document.getElementById('np-original-price').value = p.original_price || '';
   document.getElementById('np-stock').value = p.stock || 0;
   document.getElementById('np-image-input').value = '';
   if(p.image_url){
@@ -1579,6 +1581,8 @@ document.getElementById('save-product-btn').addEventListener('click', async ()=>
   const catName = document.getElementById('np-category').value.trim();
   const sku = document.getElementById('np-sku').value.trim() || null;
   const price = Number(document.getElementById('np-price').value) || 0;
+  const originalPriceRaw = document.getElementById('np-original-price').value;
+  const originalPrice = originalPriceRaw ? Number(originalPriceRaw) : null;
   const stock = Number(document.getElementById('np-stock').value) || 0;
   if(!name){ toast('Nama produk wajib diisi.'); return; }
   const saveBtn = document.getElementById('save-product-btn');
@@ -1605,11 +1609,11 @@ document.getElementById('save-product-btn').addEventListener('click', async ()=>
       imageUrl = pub.publicUrl;
     }
     if(editingProductId){
-      const { error } = await sb.from('products').update({ name, sku, price, stock, category_id: categoryId, image_url: imageUrl }).eq('id', editingProductId);
+      const { error } = await sb.from('products').update({ name, sku, price, original_price: originalPrice, stock, category_id: categoryId, image_url: imageUrl }).eq('id', editingProductId);
       if(error) throw error;
       toast('Produk diperbarui.');
     } else {
-      const { error } = await sb.from('products').insert({ name, sku, price, stock, category_id: categoryId, is_active:true, image_url: imageUrl, store_id: myStoreId });
+      const { error } = await sb.from('products').insert({ name, sku, price, original_price: originalPrice, stock, category_id: categoryId, is_active:true, image_url: imageUrl, store_id: myStoreId });
       if(error) throw error;
       toast('Produk ditambahkan.');
     }

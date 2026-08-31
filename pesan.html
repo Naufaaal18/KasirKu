@@ -90,6 +90,7 @@
   .pr-body{flex:1; min-width:0; display:flex; flex-direction:column; gap:5px; cursor:pointer;}
   .pr-name{font-weight:700; font-size:.9rem; line-height:1.3; color:var(--charcoal);}
   .pr-price{font-family:var(--font-m); font-weight:600; color:var(--amber-dark); font-size:.85rem;}
+  .pr-price-original{font-family:var(--font-m); text-decoration:line-through; color:var(--muted); font-size:.72rem; margin-right:6px;}
   .pr-stock{font-size:.7rem; color:var(--red);}
   .pr-add-btn{align-self:flex-start; margin-top:3px; background:var(--teal); color:#fff; border:none; padding:8px 26px; border-radius:10px; font-weight:700; font-size:.82rem; cursor:pointer; transition:filter .15s, transform .1s;}
   .pr-add-btn:active{transform:scale(.96);}
@@ -583,7 +584,7 @@ function renderProducts(){
         </div>
         <div class="pr-body" ${clickable}>
           <div class="pr-name">${p.name}</div>
-          <div class="pr-price">${rupiah(p.price)}</div>
+          <div class="pr-price">${p.original_price && p.original_price > p.price ? `<span class="pr-price-original">${rupiah(p.original_price)}</span>` : ''}${rupiah(p.price)}</div>
           ${p.stock<=0 ? '<div class="pr-stock">Stok habis</div>' : ''}
           <button type="button" class="pr-add-btn" ${p.stock<=0?'disabled':''} onclick="event.stopPropagation(); openProductDetail('${p.id}')">Add</button>
         </div>
@@ -603,7 +604,7 @@ function openProductDetail(productId){
   detailQty = 1;
   document.getElementById('detail-img-wrap').innerHTML = p.image_url ? `<img src="${p.image_url}" alt="">` : '🍽️';
   document.getElementById('detail-name').textContent = p.name;
-  document.getElementById('detail-price').textContent = rupiah(p.price);
+  document.getElementById('detail-price').innerHTML = p.original_price && p.original_price > p.price ? `<span class="pr-price-original">${rupiah(p.original_price)}</span>${rupiah(p.price)}` : rupiah(p.price);
   const noteInput = document.getElementById('detail-note');
   noteInput.value = '';
   updateNoteCount();
