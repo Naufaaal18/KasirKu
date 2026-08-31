@@ -431,6 +431,7 @@
         <button class="side-link" data-view="orders"><span class="ic">🧾</span> Riwayat Pesanan</button>
         <div class="side-group-label" id="side-group-produk">Produk</div>
         <button class="side-link" data-view="products" id="tab-products"><span class="ic">📦</span> Kelola Produk</button>
+        <button class="side-link" data-view="payment" id="tab-payment"><span class="ic">💳</span> Kelola Pembayaran</button>
         <div class="side-group-label" id="side-group-tim">Tim</div>
         <button class="side-link" data-view="staff" id="tab-staff"><span class="ic">👥</span> Kelola Staf</button>
       </nav>
@@ -575,8 +576,11 @@
         <thead><tr><th>Foto</th><th>Produk</th><th>Kategori</th><th>Harga</th><th>Stok</th><th>Status</th><th>Aksi</th></tr></thead>
         <tbody id="products-table-body"></tbody>
       </table>
+    </section>
 
-      <div class="qris-settings-card" style="margin-top:32px; background:#fff; border:1px solid var(--paper-line); border-radius:var(--radius-lg); padding:22px; max-width:420px; box-shadow:var(--shadow-sm);">
+    <!-- ---- PEMBAYARAN (PESAN ONLINE) VIEW ---- -->
+    <section class="view" id="view-payment">
+      <div class="qris-settings-card" style="background:#fff; border:1px solid var(--paper-line); border-radius:var(--radius-lg); padding:22px; max-width:420px; box-shadow:var(--shadow-sm);">
         <h3 style="margin:0 0 4px; font-size:1.05rem; font-weight:600; font-family:var(--font-h);">Pembayaran untuk Pesan Online</h3>
         <p style="color:var(--muted); font-size:.8rem; margin:0 0 16px;">Ditampilkan ke customer di halaman pesan.html saat checkout (QRIS &amp; Transfer).</p>
         <div class="field"><label>Nama Merchant QRIS (opsional)</label><input type="text" id="qris-merchant-input" placeholder="mis. Kasirku Coffee"></div>
@@ -833,11 +837,12 @@ async function afterLogin(user){
 
 function applyRoleVisibility(){
   const tabProducts = document.getElementById('tab-products');
+  const tabPayment = document.getElementById('tab-payment');
   const groupProduk = document.getElementById('side-group-produk');
   const tabStaff = document.getElementById('tab-staff');
   const groupTim = document.getElementById('side-group-tim');
   if(profile.role !== 'admin'){
-    tabProducts.style.display = 'none'; groupProduk.style.display = 'none';
+    tabProducts.style.display = 'none'; tabPayment.style.display = 'none'; groupProduk.style.display = 'none';
     tabStaff.style.display = 'none'; groupTim.style.display = 'none';
   }
   if(profile.role === 'kitchen'){
@@ -867,7 +872,7 @@ function closeSidebar(){
   document.getElementById('sidebar').classList.remove('open');
   document.getElementById('sidebar-backdrop').classList.remove('show');
 }
-const pageTitles = { dashboard:'Dashboard', pos:'Kasir', orders:'Riwayat Pesanan', products:'Kelola Produk', staff:'Kelola Staf' };
+const pageTitles = { dashboard:'Dashboard', pos:'Kasir', orders:'Riwayat Pesanan', products:'Kelola Produk', payment:'Kelola Pembayaran', staff:'Kelola Staf' };
 function switchView(name){
   document.querySelectorAll('.side-link').forEach(b=>b.classList.toggle('active', b.dataset.view===name));
   document.querySelectorAll('.view').forEach(v=>v.classList.remove('active'));
@@ -875,7 +880,8 @@ function switchView(name){
   document.getElementById('page-title-text').textContent = pageTitles[name] || 'Kasirku';
   if(name==='dashboard') loadDashboard();
   if(name==='orders') loadOrders();
-  if(name==='products'){ loadProducts(true); loadQrisSettings(); }
+  if(name==='products') loadProducts(true);
+  if(name==='payment') loadQrisSettings();
   if(name==='staff') loadStaff();
 }
 
@@ -1541,7 +1547,12 @@ function renderProductsAdmin(){
 }
 /* ============ QRIS SETTINGS (admin) ============ */
 async function loadQrisSettings(){
-  const { data } = await sb.from('store_settings').select('*').eq('id', true).single();
+  document.getElementById('qris-merchant-input').value = '';
+  document.getElementById('bank-name-input').value = '';
+  document.getElementById('bank-account-input').value = '';
+  document.getElementById('bank-holder-input').value = '';
+  document.getElementById('qris-preview-wrap').style.display = 'none';
+  const { data } = await sb.from('store_settings').select('*').eq('store_id', myStoreId).maybeSingle();
   if(data){
     document.getElementById('qris-merchant-input').value = data.qris_merchant_name || '';
     document.getElementById('bank-name-input').value = data.bank_name || '';
@@ -1572,13 +1583,14 @@ document.getElementById('save-qris-btn').addEventListener('click', async ()=>{
     let imageUrl;
     if(file){
       const ext = file.name.split('.').pop();
-      const path = `qris-${Date.now()}.${ext}`;
+      const path = `qris-${myStoreId}-${Date.now()}.${ext}`;
       const { error: upErr } = await sb.storage.from('store-assets').upload(path, file, { upsert: true });
       if(upErr) throw upErr;
       const { data: pub } = sb.storage.from('store-assets').getPublicUrl(path);
       imageUrl = pub.publicUrl;
     }
     const payload = {
+      store_id: myStoreId,
       qris_merchant_name: merchantName,
       bank_name: document.getElementById('bank-name-input').value.trim() || null,
       bank_account_number: document.getElementById('bank-account-input').value.trim() || null,
@@ -1586,13 +1598,13 @@ document.getElementById('save-qris-btn').addEventListener('click', async ()=>{
       updated_at: new Date().toISOString()
     };
     if(imageUrl) payload.qris_image_url = imageUrl;
-    const { error } = await sb.from('store_settings').update(payload).eq('id', true);
+    const { error } = await sb.from('store_settings').upsert(payload, { onConflict: 'store_id' });
     if(error) throw error;
     toast('Pengaturan pembayaran disimpan.');
   }catch(err){
     toast('Gagal menyimpan QRIS: ' + err.message);
   }finally{
-    btn.disabled = false; btn.textContent = 'Simpan QRIS';
+    btn.disabled = false; btn.textContent = 'Simpan Pengaturan';
   }
 });
 
