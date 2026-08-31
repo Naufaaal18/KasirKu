@@ -365,7 +365,7 @@
       background:#fff; border:1px solid var(--paper-line); border-radius:var(--radius);
       box-shadow:var(--shadow-sm); margin-bottom:12px; padding:4px 14px; overflow:hidden;
     }
-    table.admin-table td, table.dash-table td{
+    table.admin-table td{
       display:flex; align-items:center; justify-content:space-between; gap:14px;
       padding:10px 0; border-top:1px solid var(--paper-line); font-size:.85rem; text-align:right;
     }
@@ -378,22 +378,27 @@
     table.admin-table td.td-photo{justify-content:flex-start;}
     table.admin-table input.inline-stock{width:88px; text-align:right; margin-left:auto;}
     table.admin-table td.td-actions{justify-content:flex-end; gap:8px;}
-    table.dash-table td{text-align:right; white-space:normal; overflow-wrap:break-word;}
 
-    /* Kolom Produk berisi teks panjang (daftar item) -> label di atas,
+    /* Kolom Produk (nama produk di tabel admin) berisi teks panjang -> label di atas,
        teks di bawah, rata kiri, wrap per-kata (bukan per-huruf) supaya enak dibaca */
-    table.dash-table td[data-label="Produk"],
-    table.admin-table td[data-label="Produk"]{
-      display:block; text-align:left;
+    table.admin-table td[data-label="Produk"]{ display:block; text-align:left; }
+    table.admin-table td[data-label="Produk"]::before{ display:block; text-align:left; margin-bottom:6px; }
+
+    /* ---- Data Penjualan Terbaru (dash-table-sales): terlalu banyak kolom untuk
+       layout label-kiri/nilai-kanan, jadi dibikin stack (label di atas, nilai di bawah)
+       biar semua nilai kebaca jelas di layar sempit ---- */
+    table.dash-table td{
+      display:block; text-align:left; padding:8px 0;
+      border-top:1px solid var(--paper-line); font-size:.85rem;
+      white-space:normal; overflow-wrap:break-word;
     }
-    table.dash-table td[data-label="Produk"]::before,
-    table.admin-table td[data-label="Produk"]::before{
-      display:block; text-align:left; margin-bottom:6px;
+    table.dash-table td::before{
+      display:block; text-align:left; margin-bottom:4px;
     }
-    table.dash-table td[data-label="Produk"] .produk-list,
-    table.admin-table td[data-label="Produk"] .produk-list{
+    table.dash-table td .produk-list{
       display:block; width:100%; line-height:1.6; word-break:normal; overflow-wrap:break-word;
     }
+    table.dash-table-sales td[data-label="Produk"]{ max-width:none; }
 
     .dash-panel{padding:16px 16px;}
     .qris-settings-card{max-width:none !important; width:100%;}
