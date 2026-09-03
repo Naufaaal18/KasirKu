@@ -1350,7 +1350,7 @@ function renderProducts(){
   if(list.length===0){ grid.innerHTML = '<div class="empty-state" style="grid-column:1/-1"><div class="big">🗂️</div>Tidak ada produk ditemukan.</div>'; return; }
   grid.innerHTML = list.map(p=>`
     <button class="product-card" ${p.stock<=0?'disabled':''} onclick="addToCart('${p.id}')">
-      <div class="product-thumb">${p.image_url ? `<img src="${p.image_url}" alt="">` : '🍽️'}</div>
+      <div class="product-thumb">${p.image_url ? `<img src="${p.image_url}" alt="" loading="lazy">` : '🍽️'}</div>
       <div class="product-name">${p.name}</div>
       <div class="product-price">${rupiah(p.price)}</div>
       <div class="product-stock">${p.stock<=0 ? 'Stok habis' : 'Stok: '+p.stock}</div>
@@ -1721,7 +1721,7 @@ function renderProductsAdmin(){
   body.innerHTML = filtered.map(p=>`
     <tr>
       <td class="td-photo" data-label="">${p.image_url
-        ? `<img src="${p.image_url}" style="width:44px;height:44px;object-fit:cover;border-radius:6px;border:1px solid var(--paper-line);">`
+        ? `<img src="${p.image_url}" style="width:44px;height:44px;object-fit:cover;border-radius:6px;border:1px solid var(--paper-line);" loading="lazy">`
         : `<div style="width:44px;height:44px;border-radius:6px;background:var(--paper);border:1px solid var(--paper-line);display:flex;align-items:center;justify-content:center;color:var(--muted);font-size:.65rem;">-</div>`}
       </td>
       <td data-label="Produk">${p.name}<br><span style="color:var(--muted);font-size:.72rem">${p.sku||''}</span></td>
@@ -1769,6 +1769,42 @@ function renderProductsAdmin(){
     });
   });
 }
+/* ============ KOMPRESI GAMBAR SEBELUM UPLOAD (PERBAIKAN EGRESS, Sep 2026) ============
+   Sebelumnya file foto dari <input type="file"> diupload APA ADANYA ke Storage --
+   ditemukan foto produk di bucket store-assets rata-rata ~3,1MB/file (134 file = ~199MB),
+   kemungkinan besar PNG mentah langsung dari kamera HP tanpa kompresi sama sekali.
+   Setiap kali katalog produk dimuat di kasir/admin, SEMUA foto itu ke-download ulang --
+   inilah sumber utama egress Storage yang boros di project Kasirku.
+   Fungsi ini resize + re-encode gambar lewat <canvas> sebelum diupload, jadi foto baru
+   otomatis jadi puluhan-ratusan KB saja (bukan megabita) tanpa mengubah cara pakai UI. */
+function compressImageFile(file, { maxDim = 800, quality = 0.82, mimeType = 'image/jpeg' } = {}){
+  return new Promise((resolve, reject)=>{
+    const img = new Image();
+    const objectUrl = URL.createObjectURL(file);
+    img.onload = ()=>{
+      URL.revokeObjectURL(objectUrl);
+      let { width, height } = img;
+      if(width > maxDim || height > maxDim){
+        if(width >= height){ height = Math.round(height * (maxDim / width)); width = maxDim; }
+        else { width = Math.round(width * (maxDim / height)); height = maxDim; }
+      }
+      const canvas = document.createElement('canvas');
+      canvas.width = width; canvas.height = height;
+      const ctx = canvas.getContext('2d');
+      // Latar putih dulu supaya PNG transparan tidak jadi hitam saat dikonversi ke JPEG (yang tidak mendukung transparansi).
+      ctx.fillStyle = '#ffffff';
+      ctx.fillRect(0, 0, width, height);
+      ctx.drawImage(img, 0, 0, width, height);
+      canvas.toBlob((blob)=>{
+        if(!blob){ reject(new Error('Gagal mengompres gambar.')); return; }
+        resolve(blob);
+      }, mimeType, quality);
+    };
+    img.onerror = ()=>{ URL.revokeObjectURL(objectUrl); reject(new Error('Gagal membaca file gambar.')); };
+    img.src = objectUrl;
+  });
+}
+
 /* ============ QRIS SETTINGS (admin) ============ */
 async function loadQrisSettings(){
   document.getElementById('qris-merchant-input').value = '';
@@ -1806,9 +1842,13 @@ document.getElementById('save-qris-btn').addEventListener('click', async ()=>{
   try{
     let imageUrl;
     if(file){
-      const ext = file.name.split('.').pop();
-      const path = `qris-${myStoreId}-${Date.now()}.${ext}`;
-      const { error: upErr } = await sb.storage.from('store-assets').upload(path, file, { upsert: true });
+      // PERBAIKAN EGRESS (Sep 2026): tetap dikompres, tapi lebih konservatif (maks 1000px,
+      // format PNG dipertahankan bukan JPEG) supaya kode QRIS tidak buram/pecah dan tetap
+      // bisa di-scan -- foto QRIS jarang diupload (cuma sekali di awal setup), tapi kalau
+      // difoto langsung dari HP tetap sayang kalau berukuran beberapa MB.
+      const compressedBlob = await compressImageFile(file, { maxDim: 1000, quality: 0.92, mimeType: 'image/png' });
+      const path = `qris-${myStoreId}-${Date.now()}.png`;
+      const { error: upErr } = await sb.storage.from('store-assets').upload(path, compressedBlob, { upsert: true, contentType: 'image/png' });
       if(upErr) throw upErr;
       const { data: pub } = sb.storage.from('store-assets').getPublicUrl(path);
       imageUrl = pub.publicUrl;
@@ -2031,9 +2071,12 @@ document.getElementById('save-product-btn').addEventListener('click', async ()=>
     const imageFile = document.getElementById('np-image-input').files[0];
     let imageUrl = editingProductId ? (products.find(x=>x.id===editingProductId)?.image_url || null) : null;
     if(imageFile){
-      const ext = imageFile.name.split('.').pop();
-      const path = `products/${Date.now()}.${ext}`;
-      const { error: upErr } = await sb.storage.from('store-assets').upload(path, imageFile, { upsert: true });
+      // PERBAIKAN EGRESS (Sep 2026): kompres dulu ke maks 800px sisi terpanjang, JPEG q0.82,
+      // sebelum upload -- foto kamera HP yang tadinya ~3MB jadi puluhan-ratusan KB saja.
+      // Cukup buat foto produk yang cuma ditampilkan sebagai thumbnail/kartu di katalog.
+      const compressedBlob = await compressImageFile(imageFile, { maxDim: 800, quality: 0.82, mimeType: 'image/jpeg' });
+      const path = `products/${Date.now()}.jpg`;
+      const { error: upErr } = await sb.storage.from('store-assets').upload(path, compressedBlob, { upsert: true, contentType: 'image/jpeg' });
       if(upErr) throw upErr;
       const { data: pub } = sb.storage.from('store-assets').getPublicUrl(path);
       imageUrl = pub.publicUrl;

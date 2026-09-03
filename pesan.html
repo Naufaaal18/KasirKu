@@ -596,7 +596,7 @@ function renderProducts(){
       return `
       <div class="product-row">
         <div class="pr-thumb" ${clickable}>
-          <div class="pr-thumb-img">${p.image_url ? `<img src="${p.image_url}" alt="">` : '🍽️'}</div>
+          <div class="pr-thumb-img">${p.image_url ? `<img src="${p.image_url}" alt="" loading="lazy">` : '🍽️'}</div>
           ${inCartQty ? `<span class="pr-qty-badge">${inCartQty}</span>` : ''}
         </div>
         <div class="pr-body" ${clickable}>
