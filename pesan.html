@@ -116,6 +116,9 @@
   .detail-qty-row{display:flex; gap:10px; margin-top:4px;}
   .detail-qty-row .dq-btn{width:56px; height:50px; border-radius:12px; border:1.5px solid var(--teal); background:#fff; color:var(--teal); font-weight:700; font-size:1.25rem; cursor:pointer;}
   .detail-qty-row .dq-val{flex:1; height:50px; border-radius:12px; background:var(--ink); color:#fff; display:flex; align-items:center; justify-content:center; font-family:var(--font-m); font-weight:700; font-size:1.05rem;}
+  .detail-sku-row{margin-top:16px; display:flex; align-items:center; gap:8px; font-size:.78rem; color:var(--muted);}
+  .detail-sku-row .detail-sku-label{font-weight:700; text-transform:uppercase; letter-spacing:.5px; font-size:.72rem;}
+  .detail-sku-row .detail-sku-val{font-family:var(--font-m); font-weight:600; color:var(--charcoal); background:var(--paper-line); padding:3px 10px; border-radius:6px;}
   .detail-footer{position:fixed; left:0; right:0; bottom:0; padding:14px 20px calc(14px + env(safe-area-inset-bottom)); background:#fff; border-top:1px solid var(--paper-line); z-index:151; max-width:600px; margin:0 auto;}
 
   .empty-state{text-align:center; padding:60px 20px; color:var(--muted);}
@@ -364,6 +367,10 @@
       <button class="dq-btn" type="button" onclick="changeDetailQty(-1)">−</button>
       <div class="dq-val" id="detail-qty-val">1</div>
       <button class="dq-btn" type="button" onclick="changeDetailQty(1)">+</button>
+    </div>
+    <div class="detail-sku-row" id="detail-sku-row" style="display:none;">
+      <span class="detail-sku-label">SKU</span>
+      <span class="detail-sku-val" id="detail-sku-val"></span>
     </div>
   </div>
   <div class="detail-footer">
@@ -622,6 +629,13 @@ function openProductDetail(productId){
   document.getElementById('detail-img-wrap').innerHTML = p.image_url ? `<img src="${p.image_url}" alt="">` : '🍽️';
   document.getElementById('detail-name').textContent = p.name;
   document.getElementById('detail-price').innerHTML = p.original_price && p.original_price > p.price ? `<span class="pr-price-original">${rupiah(p.original_price)}</span>${rupiah(p.price)}` : rupiah(p.price);
+  const skuRow = document.getElementById('detail-sku-row');
+  if(p.sku){
+    document.getElementById('detail-sku-val').textContent = p.sku;
+    skuRow.style.display = 'flex';
+  } else {
+    skuRow.style.display = 'none';
+  }
   const noteInput = document.getElementById('detail-note');
   noteInput.value = '';
   updateNoteCount();
